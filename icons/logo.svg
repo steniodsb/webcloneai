@@ -1,0 +1,106 @@
+<svg viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+
+    <!-- Gradient 3D do disco: brilho no topo, escuro embaixo -->
+    <radialGradient id="dg" cx="48%" cy="20%" r="82%">
+      <stop offset="0%"   stop-color="#FFFFFF"  stop-opacity="1.00"/>
+      <stop offset="18%"  stop-color="#E0E0F8"  stop-opacity="0.97"/>
+      <stop offset="42%"  stop-color="#9090B8"  stop-opacity="0.88"/>
+      <stop offset="70%"  stop-color="#38386A"  stop-opacity="0.80"/>
+      <stop offset="100%" stop-color="#111128"  stop-opacity="0.72"/>
+    </radialGradient>
+
+    <!-- Rim/borda inferior (aresta 3D do disco) -->
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#505088" stop-opacity="0.40"/>
+      <stop offset="100%" stop-color="#0A0A20" stop-opacity="0.90"/>
+    </linearGradient>
+
+    <!-- Borda container (silver rim) -->
+    <linearGradient id="bg_rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="40%"  stop-color="#FFFFFF" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.03"/>
+    </linearGradient>
+
+    <!-- Filtros de blur -->
+    <filter id="f_soft"  x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="4"/></filter>
+    <filter id="f_med"   x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2"/></filter>
+    <filter id="f_crisp" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="0.8"/></filter>
+    <filter id="f_drop"  x="-25%" y="-50%" width="150%" height="200%">
+      <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#000018" flood-opacity="0.72"/>
+    </filter>
+
+    <!-- Clip paths (contorno exato de cada disco) -->
+    <clipPath id="cd1"><rect x="20" y="50" width="120" height="26" rx="13"/></clipPath>
+    <clipPath id="cd2"><rect x="26" y="88" width="108" height="24" rx="12"/></clipPath>
+
+  </defs>
+
+  <!-- ── Fundo preto ── -->
+  <rect width="160" height="160" rx="30" fill="#000000"/>
+
+  <!-- Glow ambiente mínimo -->
+  <ellipse cx="80" cy="78" rx="72" ry="55" fill="#3030A0" fill-opacity="0.07"/>
+
+  <!-- Borda silver do container -->
+  <rect x="0.8" y="0.8" width="158.4" height="158.4" rx="29.4"
+        fill="none" stroke="url(#bg_rim)" stroke-width="1.5"/>
+  <!-- Linha de destaque no topo do container -->
+  <path d="M36 1.2 Q80 0.5 124 1.2"
+        stroke="rgba(255,255,255,0.30)" stroke-width="0.9"
+        fill="none" stroke-linecap="round"/>
+
+  <!-- ══ DISCO 2 (CAMADA DE BAIXO) ══ -->
+
+  <!-- Sombra projetada -->
+  <ellipse cx="80" cy="117" rx="46" ry="5.5"
+           fill="rgba(0,0,0,0.65)" filter="url(#f_soft)"/>
+
+  <!-- Aresta 3D inferior -->
+  <rect x="29" y="103" width="102" height="9" rx="12"
+        fill="url(#rim)" opacity="0.85"/>
+
+  <!-- Corpo principal + sombra projetada -->
+  <rect x="26" y="88" width="108" height="24" rx="12"
+        fill="url(#dg)" filter="url(#f_drop)"/>
+
+  <!-- Especular macio (glow da superfície) -->
+  <g clip-path="url(#cd2)">
+    <ellipse cx="64" cy="96" rx="36" ry="9"
+             fill="white" fill-opacity="0.35" filter="url(#f_med)"/>
+    <!-- Especular concentrado -->
+    <ellipse cx="47" cy="93" rx="14" ry="4"
+             fill="white" fill-opacity="0.72" filter="url(#f_crisp)"/>
+    <!-- Flare mínimo -->
+    <ellipse cx="38" cy="91" rx="5"  ry="2"
+             fill="white" fill-opacity="0.96"/>
+  </g>
+
+  <!-- ══ DISCO 1 (CAMADA DO TOPO) ══ -->
+
+  <!-- Sombra do disco 1 que cai sobre o disco 2 -->
+  <ellipse cx="80" cy="80" rx="52" ry="6"
+           fill="rgba(0,0,0,0.52)" filter="url(#f_soft)"/>
+
+  <!-- Aresta 3D inferior -->
+  <rect x="23" y="67" width="114" height="9" rx="13"
+        fill="url(#rim)" opacity="0.82"/>
+
+  <!-- Corpo principal -->
+  <rect x="20" y="50" width="120" height="26" rx="13"
+        fill="url(#dg)" filter="url(#f_drop)"/>
+
+  <!-- Especular macio (mais intenso – disco está mais perto da luz) -->
+  <g clip-path="url(#cd1)">
+    <ellipse cx="68" cy="58" rx="42" ry="11"
+             fill="white" fill-opacity="0.42" filter="url(#f_med)"/>
+    <!-- Especular concentrado -->
+    <ellipse cx="49" cy="55" rx="17" ry="5"
+             fill="white" fill-opacity="0.82" filter="url(#f_crisp)"/>
+    <!-- Flare brilhante -->
+    <ellipse cx="38" cy="53" rx="6.5" ry="2.5"
+             fill="white" fill-opacity="0.98"/>
+  </g>
+
+</svg>

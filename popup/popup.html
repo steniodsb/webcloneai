@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Web Clone AI</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+  <!-- ══ TELA DE LOGIN ══ -->
+  <div id="loginScreen" class="screen">
+    <div class="auth-wrap">
+      <div class="auth-logo">
+        <img src="../icons/logo.webp" width="38" height="38" alt="" style="border-radius:10px;display:block;flex-shrink:0">
+        <div>
+          <div class="auth-brand">Web Clone AI</div>
+          <div class="auth-tagline">Entre para clonar qualquer site</div>
+        </div>
+      </div>
+
+      <div id="loginError" class="auth-msg auth-msg-err hidden"></div>
+
+      <div class="field-group">
+        <label class="field-label" for="loginEmail">E-mail</label>
+        <input type="email" id="loginEmail" class="field-input"
+               placeholder="seu@email.com" autocomplete="email">
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="loginPassword">Senha</label>
+        <input type="password" id="loginPassword" class="field-input"
+               placeholder="••••••••" autocomplete="current-password">
+      </div>
+
+      <div class="bw" id="loginBw">
+        <div class="bspin"></div>
+        <button id="loginBtn" class="export-btn">ENTRAR</button>
+      </div>
+
+      <div class="auth-footer">
+        <a href="#" id="forgotLink" class="auth-link">Esqueceu a senha?</a>
+        <span class="auth-sep">·</span>
+        <a href="#" id="buyLink" class="auth-link buy-link">Comprar acesso →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SEM ASSINATURA ══ -->
+  <div id="noSubScreen" class="screen hidden">
+    <div class="auth-wrap">
+      <div class="auth-logo">
+        <img src="../icons/logo.webp" width="38" height="38" alt="" style="border-radius:10px;display:block;flex-shrink:0">
+        <div>
+          <div class="auth-brand">Web Clone AI</div>
+        </div>
+      </div>
+      <div class="nosub-badge">🔒</div>
+      <div class="nosub-title">Sem assinatura ativa</div>
+      <div class="nosub-desc">Sua conta não possui uma assinatura ativa ou foi cancelada. Adquira o acesso para usar a extensão.</div>
+      <div class="bw">
+        <div class="bspin"></div>
+        <button id="buyBtn" class="export-btn">ADQUIRIR ACESSO</button>
+      </div>
+      <button id="logoutNoSub" class="ghost-btn">Sair da conta</button>
+    </div>
+  </div>
+
+  <!-- ══ TELA PRINCIPAL ══ -->
+  <div id="mainScreen" class="screen hidden">
+    <div class="container">
+
+      <!-- Header -->
+      <header>
+        <div class="logo">
+          <img src="../icons/logo.webp" width="28" height="28" alt=""
+               style="border-radius:8px;display:block;flex-shrink:0">
+          <span class="logo-name">Web Clone AI</span>
+        </div>
+        <div class="header-right">
+          <button id="tutoriaisBtn" class="icon-btn" title="Tutoriais">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polygon points="10 8 16 12 10 16 10 8"/>
+            </svg>
+          </button>
+          <button id="logoutBtn" class="icon-btn" title="Sair da conta">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+          <span class="version-tag">V2.0</span>
+        </div>
+      </header>
+
+      <!-- URL display -->
+      <div id="urlBar" class="url-bar">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+        <span id="urlText">Carregando...</span>
+      </div>
+
+      <!-- Detected Frameworks -->
+      <div id="frameworksRow" class="frameworks-row hidden">
+        <span class="frameworks-label">TECNOLOGIAS</span>
+        <div id="frameworkBadges" class="framework-badges"></div>
+      </div>
+
+      <!-- Feature toggles -->
+      <div class="features-list">
+
+        <label class="feature-row">
+          <div class="feature-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="9" height="7" rx="1.5"/>
+              <rect x="13" y="3" width="9" height="7" rx="1.5"/>
+              <rect x="2" y="14" width="9" height="7" rx="1.5"/>
+              <rect x="13" y="14" width="9" height="7" rx="1.5"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <div class="feature-name">Capturas do site</div>
+            <div class="feature-sub">Foto de cada seção da página</div>
+          </div>
+          <div class="toggle">
+            <input type="checkbox" id="toggleScreenshots" checked>
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </div>
+        </label>
+
+        <label class="feature-row">
+          <div class="feature-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <div class="feature-name">Visual completo</div>
+            <div class="feature-sub">Cores, fontes e animações</div>
+          </div>
+          <div class="toggle">
+            <input type="checkbox" id="toggleAnimations" checked>
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </div>
+        </label>
+
+        <label class="feature-row">
+          <div class="feature-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <div class="feature-name">Estrutura completa</div>
+            <div class="feature-sub">Captura todo o layout da página</div>
+          </div>
+          <div class="toggle">
+            <input type="checkbox" id="toggleDeepDom" checked>
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </div>
+        </label>
+
+        <label class="feature-row">
+          <div class="feature-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </div>
+          <div class="feature-text">
+            <div class="feature-name">Imagens e ícones</div>
+            <div class="feature-sub">Fotos, fontes e todos os assets</div>
+          </div>
+          <div class="toggle">
+            <input type="checkbox" id="toggleAssets" checked>
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </div>
+        </label>
+
+      </div>
+
+      <!-- Export button -->
+      <div class="bw" id="exportBw">
+        <div class="bspin"></div>
+        <button id="exportBtn" class="export-btn">
+          <svg id="exportIcon" width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span id="exportLabel">CLONAR E BAIXAR</span>
+        </button>
+      </div>
+
+      <!-- Progress steps -->
+      <div id="stepsSection" class="steps-section hidden">
+        <div class="step" id="stepDom">
+          <span class="step-dot">◎</span>
+          <span class="step-label">Visual e estrutura</span>
+        </div>
+        <div class="step" id="stepShots">
+          <span class="step-dot">◎</span>
+          <span class="step-label">Capturas de tela</span>
+        </div>
+        <div class="step" id="stepZip">
+          <span class="step-dot">◎</span>
+          <span class="step-label">Criando o arquivo</span>
+        </div>
+        <div class="step" id="stepDownload">
+          <span class="step-dot">◎</span>
+          <span class="step-label">Download concluído</span>
+        </div>
+      </div>
+
+      <!-- Status line -->
+      <div id="statusLine" class="status-line hidden"></div>
+
+      <!-- User info bar -->
+      <div id="userBar" class="user-bar hidden">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span id="userEmail" class="user-email"></span>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="../lib/jszip.min.js"></script>
+  <script src="auth.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

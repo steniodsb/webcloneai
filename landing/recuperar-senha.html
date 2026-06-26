@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recuperar senha — Web Clone AI</title>
+  <link rel="icon" href="../icons/logo.webp" type="image/webp">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sg:   linear-gradient(135deg, #B8B8B8 0%, #FFFFFF 50%, #9A9A9A 100%);
+      --t1:   rgba(248,248,248,0.96);
+      --t2:   rgba(210,210,210,0.55);
+      --t3:   rgba(175,175,175,0.32);
+      --glass:rgba(255,255,255,0.042);
+      --ghi:  rgba(255,255,255,0.068);
+      --gbrd: rgba(255,255,255,0.082);
+      --gtop: rgba(255,255,255,0.18);
+    }
+
+    body {
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      background: #070707;
+      background-image:
+        radial-gradient(ellipse 80% 35% at 50% -4%, rgba(215,215,215,.065) 0%, transparent 58%),
+        radial-gradient(ellipse 55% 30% at 4% 60%, rgba(195,195,195,.025) 0%, transparent 55%);
+      color: var(--t1);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 400px;
+      background: var(--glass);
+      border: 1px solid var(--gbrd);
+      border-radius: 20px;
+      padding: 36px 30px;
+      box-shadow: inset 0 1px 0 var(--gtop), 0 40px 80px rgba(0,0,0,0.55);
+    }
+
+    .card-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 26px;
+      text-decoration: none;
+    }
+
+    .card-logo img { border-radius: 9px; }
+
+    .card-brand {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.4px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.6px;
+      margin-bottom: 8px;
+    }
+
+    .sub {
+      font-size: 13.5px;
+      color: var(--t2);
+      line-height: 1.55;
+      margin-bottom: 24px;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 18px;
+    }
+
+    label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--t2);
+      letter-spacing: 0.3px;
+    }
+
+    .input {
+      width: 100%;
+      padding: 11px 14px;
+      background: rgba(255,255,255,0.042);
+      border: 1px solid rgba(255,255,255,0.082);
+      border-radius: 10px;
+      color: var(--t1);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .input:focus { border-color: rgba(255,255,255,0.24); background: rgba(255,255,255,0.058); }
+    .input::placeholder { color: var(--t3); }
+
+    /* Beam button */
+    .bw {
+      position: relative;
+      display: flex;
+      border-radius: 12px;
+      padding: 1.5px;
+      overflow: hidden;
+    }
+
+    .bspin {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 200%; height: 200%;
+      transform: translate(-50%,-50%) rotate(0deg);
+      background: conic-gradient(
+        from 0deg,
+        transparent 40%,
+        rgba(210,210,210,.50) 46%,
+        rgba(255,255,255,.92) 50%,
+        rgba(210,210,210,.50) 54%,
+        transparent 60%
+      );
+      animation: bspin 3s linear infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .bw:hover .bspin { animation-duration: .42s; }
+    @keyframes bspin { to { transform: translate(-50%,-50%) rotate(360deg); } }
+
+    .submit-btn {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      padding: 13px 20px;
+      border-radius: 10.5px;
+      background: #FFFFFF;
+      color: #080808;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13.5px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      border: none;
+      cursor: pointer;
+      transition: filter 0.18s;
+    }
+
+    .submit-btn:hover:not(:disabled) { filter: brightness(0.92); }
+    .submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .msg {
+      display: none;
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+
+    .msg.ok {
+      display: block;
+      color: rgba(200,225,200,0.90);
+      background: rgba(150,150,150,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .msg.err {
+      display: block;
+      color: rgba(255,130,130,0.92);
+      background: rgba(255,55,55,0.06);
+      border: 1px solid rgba(255,75,75,0.15);
+    }
+
+    .back-note {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      font-size: 12px;
+      color: var(--t3);
+      line-height: 1.6;
+    }
+
+    .back-note strong { color: rgba(240,240,240,0.82); font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <a href="./" class="card-logo">
+      <img src="../icons/logo.webp" width="28" height="28" alt="Web Clone AI">
+      <span class="card-brand">Web Clone AI</span>
+    </a>
+
+    <h1>Recuperar senha</h1>
+    <p class="sub">Informe o e-mail da sua conta e enviaremos um link para você criar uma nova senha.</p>
+
+    <form id="recoverForm" novalidate>
+      <div class="field-group">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" class="input" placeholder="seu@email.com" required>
+      </div>
+
+      <div class="bw">
+        <div class="bspin"></div>
+        <button type="submit" class="submit-btn" id="submitBtn">ENVIAR LINK DE REDEFINIÇÃO</button>
+      </div>
+    </form>
+
+    <div id="msg" class="msg"></div>
+
+    <div class="back-note">
+      Lembrou a senha? Volte para a extensão <strong>Web Clone AI</strong> no seu navegador e faça login normalmente pelo ícone na barra de ferramentas.
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL      = 'https://SEU_PROJETO.supabase.co';
+    const SUPABASE_ANON_KEY = 'SUA_CHAVE_ANON_AQUI';
+
+    const form = document.getElementById('recoverForm');
+    const btn  = document.getElementById('submitBtn');
+    const msg  = document.getElementById('msg');
+
+    function showMsg(text, type) {
+      msg.textContent = text;
+      msg.className = `msg ${type}`;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showMsg('Informe um e-mail válido.', 'err');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'ENVIANDO...';
+      msg.className = 'msg';
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ email }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error_description || data.message || `Erro ${res.status}`);
+        }
+
+        showMsg('Enviamos um link de redefinição para seu e-mail. Verifique sua caixa de entrada e a pasta de spam.', 'ok');
+        form.style.display = 'none';
+      } catch (err) {
+        showMsg(err.message || 'Não foi possível enviar o link. Tente novamente.', 'err');
+        btn.disabled = false;
+        btn.textContent = 'ENVIAR LINK DE REDEFINIÇÃO';
+      }
+    });
+  </script>
+
+</body>
+</html>

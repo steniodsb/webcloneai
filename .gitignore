@@ -1,0 +1,6 @@
+api/.env
+api/node_modules/
+*.zip
+*.crx
+.DS_Store
+Thumbs.db
