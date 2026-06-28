@@ -356,6 +356,7 @@ app.get('/api/payment/status', async (req, res) => {
 
 // ── Health check ──────────────────────────────────────────────────────────────
 
+app.get('/', (_req, res) => res.json({ service: 'Web Clone AI API', status: 'online' }));
 app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
 // ── Start ─────────────────────────────────────────────────────────────────────
