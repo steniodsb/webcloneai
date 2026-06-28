@@ -1,7 +1,7 @@
 'use strict';
 
 // ─── Configuração — preencher com credenciais reais ──────────────────────────
-const API_URL = 'https://api.webcloneai.com.br'; // URL do seu backend Express
+const API_URL = 'https://api.webcloneai.com.br';
 
 // ─── Estado ──────────────────────────────────────────────────────────────────
 let currentPlan    = 'lifetime';
