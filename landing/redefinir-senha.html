@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Recuperar senha — Web Clone AI</title>
+  <title>Definir nova senha — Web Clone AI</title>
   <link rel="icon" href="../icons/logo.webp" type="image/webp">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
@@ -107,7 +107,6 @@
     .input:focus { border-color: rgba(255,255,255,0.24); background: rgba(255,255,255,0.058); }
     .input::placeholder { color: var(--t3); }
 
-    /* Beam button */
     .bw {
       position: relative;
       display: flex;
@@ -199,25 +198,29 @@
       <span class="card-brand">Web Clone AI</span>
     </a>
 
-    <h1>Recuperar senha</h1>
-    <p class="sub">Informe o e-mail da sua conta e enviaremos um link para você criar uma nova senha.</p>
+    <h1>Definir nova senha</h1>
+    <p class="sub">Crie a senha que você vai usar para entrar na extensão e na área de membros.</p>
 
-    <form id="recoverForm" novalidate>
+    <form id="resetForm" novalidate>
       <div class="field-group">
-        <label for="email">E-mail</label>
-        <input type="email" id="email" class="input" placeholder="seu@email.com" required>
+        <label for="password">Nova senha</label>
+        <input type="password" id="password" class="input" placeholder="Mínimo 6 caracteres" required>
+      </div>
+      <div class="field-group">
+        <label for="confirm">Confirmar senha</label>
+        <input type="password" id="confirm" class="input" placeholder="Repita a senha" required>
       </div>
 
       <div class="bw">
         <div class="bspin"></div>
-        <button type="submit" class="submit-btn" id="submitBtn">ENVIAR LINK DE REDEFINIÇÃO</button>
+        <button type="submit" class="submit-btn" id="submitBtn">SALVAR NOVA SENHA</button>
       </div>
     </form>
 
     <div id="msg" class="msg"></div>
 
     <div class="back-note">
-      Lembrou a senha? Volte para a extensão <strong>Web Clone AI</strong> no seu navegador e faça login normalmente pelo ícone na barra de ferramentas.
+      Depois de salvar, abra a extensão <strong>Web Clone AI</strong> no navegador (ou a área de membros) e entre com seu e-mail e a nova senha.
     </div>
   </div>
 
@@ -225,7 +228,7 @@
     const SUPABASE_URL      = 'https://cygvhqggcqsemtrfltfk.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5Z3ZocWdnY3FzZW10cmZsdGZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTE3OTAsImV4cCI6MjA5ODA2Nzc5MH0.T_tbZPZdn32uQyyQKGIRa-L3-DQydsv8ewi6h2DzFJE';
 
-    const form = document.getElementById('recoverForm');
+    const form = document.getElementById('resetForm');
     const btn  = document.getElementById('submitBtn');
     const msg  = document.getElementById('msg');
 
@@ -234,40 +237,54 @@
       msg.className = `msg ${type}`;
     }
 
+    // O Supabase devolve o token no fragmento (#) ou na query (?)
+    function getToken() {
+      const hash  = new URLSearchParams(location.hash.replace(/^#/, ''));
+      const query = new URLSearchParams(location.search);
+      return hash.get('access_token') || query.get('access_token');
+    }
+
+    const accessToken = getToken();
+
+    if (!accessToken) {
+      form.style.display = 'none';
+      showMsg('Link inválido ou expirado. Solicite um novo link de redefinição na página "Recuperar senha".', 'err');
+    }
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const email = document.getElementById('email').value.trim();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        showMsg('Informe um e-mail válido.', 'err');
-        return;
-      }
+      const password = document.getElementById('password').value;
+      const confirm  = document.getElementById('confirm').value;
+
+      if (password.length < 6)   { showMsg('A senha precisa ter no mínimo 6 caracteres.', 'err'); return; }
+      if (password !== confirm)  { showMsg('As senhas não coincidem.', 'err'); return; }
 
       btn.disabled = true;
-      btn.textContent = 'ENVIANDO...';
+      btn.textContent = 'SALVANDO...';
       msg.className = 'msg';
 
       try {
-        const redirectTo = `${location.origin}/redefinir-senha`;
-        const res = await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
-          method: 'POST',
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
             'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${accessToken}`,
           },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ password }),
         });
 
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          throw new Error(data.error_description || data.message || `Erro ${res.status}`);
+          throw new Error(data.error_description || data.msg || data.message || `Erro ${res.status}`);
         }
 
-        showMsg('Enviamos um link de redefinição para seu e-mail. Verifique sua caixa de entrada e a pasta de spam.', 'ok');
+        showMsg('✅ Senha definida com sucesso! Já pode entrar na extensão com seu e-mail e a nova senha.', 'ok');
         form.style.display = 'none';
       } catch (err) {
-        showMsg(err.message || 'Não foi possível enviar o link. Tente novamente.', 'err');
+        showMsg(err.message || 'Não foi possível salvar a senha. O link pode ter expirado.', 'err');
         btn.disabled = false;
-        btn.textContent = 'ENVIAR LINK DE REDEFINIÇÃO';
+        btn.textContent = 'SALVAR NOVA SENHA';
       }
     });
   </script>

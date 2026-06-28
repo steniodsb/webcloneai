@@ -150,11 +150,13 @@ async function createSupabaseUser(email, plan, asaasCustomerId, asaasPaymentId) 
     asaas_payment_id:    asaasPaymentId,
   }]);
 
-  // 3. Gerar link de redefinição de senha e enviar e-mail
-  await supaAdmin('POST', '/auth/v1/admin/users/' + userId + '/generate-link', {
-    type:       'recovery',
-    redirect_to: process.env.MEMBERS_URL || 'https://membros.webcloneai.com.br',
-  });
+  // 3. Enviar e-mail para o cliente definir a senha (best-effort — não derruba o provisioning)
+  try {
+    const resetUrl = process.env.PASSWORD_RESET_URL || 'https://webcloneai.com.br/redefinir-senha';
+    await supaAdmin('POST', `/auth/v1/recover?redirect_to=${encodeURIComponent(resetUrl)}`, { email });
+  } catch (e) {
+    console.error('[email] falha ao enviar link de senha:', e.message);
+  }
 
   return userId;
 }
