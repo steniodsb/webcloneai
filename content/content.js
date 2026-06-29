@@ -224,6 +224,12 @@ async function extractPage() {
   // Mídias (vídeos, áudios, embeds)
   const media = collectMedia(imageSet, base);
 
+  // Design specs computados, SVGs inline, SEO e responsividade
+  const designSpec = extractDesignSpec();
+  const svgs = extractSvgs();
+  const seo = extractSeo();
+  const responsive = extractResponsive();
+
   const meta = {
     title: document.title || 'Projeto Exportado',
     description: document.querySelector('meta[name="description"]')?.content || '',
@@ -242,8 +248,134 @@ async function extractPage() {
     designTokens,
     imageUrls: [...imageSet],
     media,
+    designSpec,
+    svgs,
+    seo,
+    responsive,
     meta,
   };
+}
+
+// ── Design specs computados (valores REAIS resolvidos pelo browser) ───────────
+
+function rgbToHex(c) {
+  if (!c) return null;
+  const m = c.match(/rgba?\(([^)]+)\)/);
+  if (!m) return c;
+  const parts = m[1].split(',').map(s => parseFloat(s.trim()));
+  const [r, g, b, a] = parts;
+  if (a !== undefined && a < 0.98) return c; // mantém rgba com transparência
+  const h = (n) => Math.round(n).toString(16).padStart(2, '0');
+  return '#' + h(r) + h(g) + h(b);
+}
+
+function extractDesignSpec() {
+  const colorCount = {};
+  const addColor = (c) => {
+    if (!c) return;
+    const v = c.trim().toLowerCase();
+    if (!v || v === 'rgba(0, 0, 0, 0)' || v === 'transparent' || v.includes('inherit')) return;
+    colorCount[v] = (colorCount[v] || 0) + 1;
+  };
+
+  const els = [...document.querySelectorAll('body *')].slice(0, 3000);
+  const shadows = new Set(), gradients = new Set(), radii = new Set();
+
+  for (const el of els) {
+    const cs = getComputedStyle(el);
+    addColor(cs.backgroundColor);
+    addColor(cs.color);
+    addColor(cs.borderTopColor);
+    if (cs.boxShadow && cs.boxShadow !== 'none') shadows.add(cs.boxShadow);
+    const bg = cs.backgroundImage;
+    if (bg && bg.includes('gradient')) gradients.add(bg);
+    if (cs.borderRadius && cs.borderRadius !== '0px') radii.add(cs.borderRadius);
+  }
+
+  const palette = Object.entries(colorCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 16)
+    .map(([c]) => rgbToHex(c));
+
+  const typography = {};
+  for (const sel of ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'button']) {
+    const el = document.querySelector(sel);
+    if (!el) continue;
+    const cs = getComputedStyle(el);
+    typography[sel] = {
+      fontFamily: cs.fontFamily,
+      fontSize: cs.fontSize,
+      fontWeight: cs.fontWeight,
+      lineHeight: cs.lineHeight,
+      letterSpacing: cs.letterSpacing,
+      color: rgbToHex(cs.color),
+    };
+  }
+
+  return {
+    palette: [...new Set(palette)],
+    typography,
+    shadows: [...shadows].slice(0, 8),
+    gradients: [...gradients].slice(0, 8),
+    radii: [...radii].slice(0, 8),
+  };
+}
+
+// ── SVGs inline (ícones reutilizáveis) ────────────────────────────────────────
+
+function extractSvgs() {
+  const seen = new Set(), svgs = [];
+  for (const svg of document.querySelectorAll('svg')) {
+    const html = svg.outerHTML;
+    if (html.length < 40 || html.length > 20000) continue;
+    const key = html.replace(/\s+/g, '').slice(0, 240);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    svgs.push(html);
+    if (svgs.length >= 40) break;
+  }
+  return svgs;
+}
+
+// ── SEO / meta tags ───────────────────────────────────────────────────────────
+
+function extractSeo() {
+  const metas = {};
+  for (const m of document.querySelectorAll('meta[property^="og:"], meta[name^="twitter:"], meta[name="description"], meta[name="keywords"], meta[name="robots"], meta[name="theme-color"], meta[name="author"]')) {
+    const k = m.getAttribute('property') || m.getAttribute('name');
+    const v = m.getAttribute('content');
+    if (k && v) metas[k] = v;
+  }
+  const attr = (sel, a) => document.querySelector(sel)?.getAttribute(a) || null;
+  const jsonld = [...document.querySelectorAll('script[type="application/ld+json"]')]
+    .map(s => s.textContent.trim()).filter(Boolean).slice(0, 5);
+  return {
+    metas,
+    canonical: attr('link[rel="canonical"]', 'href'),
+    manifest: attr('link[rel="manifest"]', 'href'),
+    appleIcon: attr('link[rel="apple-touch-icon"]', 'href'),
+    jsonld,
+  };
+}
+
+// ── Responsividade / dark mode (a partir das media queries) ───────────────────
+
+function extractResponsive() {
+  const breakpoints = new Set();
+  let darkMode = false;
+  for (const sheet of document.styleSheets) {
+    try {
+      for (const rule of sheet.cssRules || []) {
+        if (rule instanceof CSSMediaRule) {
+          const mt = rule.conditionText || rule.media.mediaText || '';
+          const bm = mt.match(/(?:min|max)-width:\s*\d+px/g);
+          if (bm) bm.forEach(b => breakpoints.add(b.replace(/\s+/g, ' ')));
+          if (/prefers-color-scheme:\s*dark/.test(mt)) darkMode = true;
+        }
+      }
+    } catch (_) {}
+  }
+  return { breakpoints: [...breakpoints].slice(0, 20), darkMode };
 }
 
 // Coleta vídeos, áudios e embeds. Posters e mídias baixáveis vão para o `set`.

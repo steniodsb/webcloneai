@@ -292,6 +292,23 @@ class WebClonerAI {
       this.zip.file('index.html', finalHtml);
       this.zip.file('PROMPT.md', this._generatePrompt(pageData.meta, pageData, cssFiles, shotsCount));
       this.zip.file('README.md', this._generateReadme(pageData.meta, cssFiles.length));
+      this.zip.file('DESIGN.md', this._generateDesignDoc(pageData));
+
+      // SVGs inline extraídos como arquivos reutilizáveis
+      if (pageData.svgs?.length) {
+        const iconsFolder = this.zip.folder('assets/icons');
+        pageData.svgs.forEach((svg, i) => {
+          let s = svg;
+          if (!/xmlns=/i.test(s)) s = s.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+          iconsFolder.file(`icon_${i + 1}.svg`, s);
+        });
+      }
+
+      // JSON-LD (schema.org) preservado
+      if (pageData.seo?.jsonld?.length) {
+        const ldFolder = this.zip.folder('assets/jsonld');
+        pageData.seo.jsonld.forEach((j, i) => ldFolder.file(`schema_${i + 1}.json`, j));
+      }
       this._stepDone('zip');
 
       // Step 4: Download
@@ -565,7 +582,9 @@ styles/               ← todos os arquivos CSS
 assets/
   images/             ← todas as imagens
   fonts/              ← todas as fontes
+  icons/              ← ícones SVG extraídos
 screenshots/          ← 📸 REFERÊNCIA VISUAL — olhe aqui primeiro
+DESIGN.md             ← 🎨 cores, tipografia e espaçamentos REAIS (computados)
 PROMPT.md             ← este arquivo
 \`\`\`
 ${shotsSection}${tokensSection}${fontsSection}${mediaSection}${motionSection}
@@ -581,7 +600,8 @@ Quero que você reproduza este site exatamente igual ao original:
 
 1. Leia o index.html para entender a estrutura completa
 2. Analise as imagens em /screenshots/ — elas mostram como cada seção deve ficar visualmente
-3. Use os arquivos CSS em /styles/ como referência de cores, tipografia e espaçamentos
+3. Use o DESIGN.md como fonte de verdade de cores, tipografia e espaçamentos (valores reais computados)
+4. Use os arquivos CSS em /styles/ como referência detalhada
 4. Mantenha todos os layouts, animações, hover effects e responsividade
 5. Substitua apenas: textos de conteúdo, nome da marca e imagens de placeholder
 
@@ -617,6 +637,49 @@ npx serve .       # testar localmente na porta 3000
 
   _generateReadme(meta, cssCount) {
     return `# ${meta.title}\n\n> Exportado por **Web Clone AI** de: ${meta.url}\n\n## Abrir no Claude Code\n\`\`\`\nclaude .\n\`\`\`\n\n## Publicar\n\`\`\`\nnpx vercel\n\`\`\`\n`;
+  }
+
+  _generateDesignDoc(pageData) {
+    const d = pageData.designSpec || {};
+    const seo = pageData.seo || {};
+    const r = pageData.responsive || {};
+
+    const palette = (d.palette || []).length
+      ? `## 🎨 Paleta de cores (real, computada)\n\n${d.palette.map(c => `- \`${c}\``).join('\n')}\n`
+      : '';
+
+    const typoRows = Object.entries(d.typography || {}).map(([sel, t]) =>
+      `| \`${sel}\` | ${t.fontSize} | ${t.fontWeight} | ${t.lineHeight} | ${t.letterSpacing} | \`${t.color}\` |`
+    ).join('\n');
+    const baseFont = Object.values(d.typography || {})[0]?.fontFamily || '—';
+    const typo = typoRows
+      ? `## ✒️ Tipografia (computada)\n\nFonte base: ${baseFont}\n\n| Elemento | Tamanho | Peso | Line-height | Letter-spacing | Cor |\n|---|---|---|---|---|---|\n${typoRows}\n`
+      : '';
+
+    const shadows = (d.shadows || []).length
+      ? `## 🌑 Sombras\n\n${d.shadows.map(s => `- \`${s}\``).join('\n')}\n`
+      : '';
+    const gradients = (d.gradients || []).length
+      ? `## 🌈 Gradientes\n\n${d.gradients.map(g => `- \`${g}\``).join('\n')}\n`
+      : '';
+    const radii = (d.radii || []).length
+      ? `## ⬜ Border-radius\n\n${d.radii.map(x => `\`${x}\``).join(' · ')}\n`
+      : '';
+
+    const seoMetas = Object.entries(seo.metas || {});
+    const seoSection = (seoMetas.length || seo.canonical || seo.jsonld?.length)
+      ? `## 🔎 SEO / Meta\n\n${seoMetas.map(([k, v]) => `- **${k}:** ${v}`).join('\n')}\n${seo.canonical ? `- **canonical:** ${seo.canonical}\n` : ''}${seo.jsonld?.length ? `\n${seo.jsonld.length} bloco(s) JSON-LD (schema.org) preservado(s) em \`assets/jsonld/\`.\n` : ''}`
+      : '';
+
+    const respSection = ((r.breakpoints || []).length || r.darkMode)
+      ? `## 📱 Responsividade\n\n${r.breakpoints?.length ? `Breakpoints detectados:\n${r.breakpoints.map(b => `- \`@media (${b})\``).join('\n')}\n` : ''}${r.darkMode ? `\n🌙 O site tem **dark mode** (\`prefers-color-scheme: dark\`) — reconstrua os dois temas.\n` : ''}`
+      : '';
+
+    const svgSection = pageData.svgs?.length
+      ? `## ⭐ Ícones SVG\n\n${pageData.svgs.length} SVG(s) inline extraído(s) para \`assets/icons/\`.\n`
+      : '';
+
+    return `# Design System — ${pageData.meta.title}\n\n> Valores extraídos direto do site (computados pelo navegador). Use como referência fiel de cores, tipografia e espaçamentos ao reconstruir.\n\n${palette}\n${typo}\n${shadows}\n${gradients}\n${radii}\n${respSection}\n${seoSection}\n${svgSection}\n---\n*Gerado por Web Clone AI*\n`;
   }
 
   async _fetchText(url) {
