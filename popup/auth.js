@@ -4,7 +4,7 @@
 const WCA_CONFIG = {
   supabaseUrl:     'https://cygvhqggcqsemtrfltfk.supabase.co',
   supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5Z3ZocWdnY3FzZW10cmZsdGZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTE3OTAsImV4cCI6MjA5ODA2Nzc5MH0.T_tbZPZdn32uQyyQKGIRa-L3-DQydsv8ewi6h2DzFJE',
-  membersUrl:      'https://membros.webcloneai.com.br',  // URL da área de membros
+  membersUrl:      'https://webcloneai.com.br/membros',  // URL da área de membros
   checkoutUrl:     'https://webcloneai.com.br/checkout', // URL do checkout
 };
 

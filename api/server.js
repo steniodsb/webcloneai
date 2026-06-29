@@ -4,6 +4,7 @@ require('dotenv').config();
 const express  = require('express');
 const cors     = require('cors');
 const crypto   = require('crypto');
+const path     = require('path');
 const fetch    = (...args) => import('node-fetch').then(({default: f}) => f(...args));
 
 const app = express();
@@ -358,8 +359,23 @@ app.get('/api/payment/status', async (req, res) => {
 
 // ── Health check ──────────────────────────────────────────────────────────────
 
-app.get('/', (_req, res) => res.json({ service: 'Web Clone AI API', status: 'online' }));
 app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
+
+// ── Arquivos estáticos (LP, checkout, área de membros) ────────────────────────
+
+const SITE_ROOT = path.join(__dirname, '..');
+
+app.use('/icons',    express.static(path.join(SITE_ROOT, 'icons')));
+app.use('/fonts',    express.static(path.join(SITE_ROOT, 'fonts')));
+app.use('/checkout', express.static(path.join(SITE_ROOT, 'checkout')));
+app.use('/landing',  express.static(path.join(SITE_ROOT, 'landing')));
+app.use('/members',  express.static(path.join(SITE_ROOT, 'members')));
+
+app.get('/',                (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/index.html')));
+app.get('/lp',              (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/index.html')));
+app.get('/membros',         (_req, res) => res.sendFile(path.join(SITE_ROOT, 'members/index.html')));
+app.get('/recuperar-senha', (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/recuperar-senha.html')));
+app.get('/redefinir-senha', (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/redefinir-senha.html')));
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 
