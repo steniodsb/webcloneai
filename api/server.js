@@ -5,6 +5,7 @@ const express  = require('express');
 const cors     = require('cors');
 const crypto   = require('crypto');
 const path     = require('path');
+const fs       = require('fs');
 const fetch    = (...args) => import('node-fetch').then(({default: f}) => f(...args));
 
 const app = express();
@@ -376,6 +377,45 @@ app.get('/lp',              (_req, res) => res.sendFile(path.join(SITE_ROOT, 'la
 app.get('/membros',         (_req, res) => res.sendFile(path.join(SITE_ROOT, 'members/index.html')));
 app.get('/recuperar-senha', (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/recuperar-senha.html')));
 app.get('/redefinir-senha', (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/redefinir-senha.html')));
+
+// ── Download da extensão (ZIP gerado a partir dos arquivos do projeto) ─────────
+
+let _extZip = null;
+
+async function buildExtensionZip() {
+  if (_extZip) return _extZip;
+  const JSZip = require(path.join(SITE_ROOT, 'lib/jszip.min.js'));
+  const zip = new JSZip();
+
+  const addDir = (absDir, rel) => {
+    for (const name of fs.readdirSync(absDir)) {
+      const abs = path.join(absDir, name);
+      const r = rel ? `${rel}/${name}` : name;
+      if (fs.statSync(abs).isDirectory()) addDir(abs, r);
+      else zip.file(r, fs.readFileSync(abs));
+    }
+  };
+
+  zip.file('manifest.json', fs.readFileSync(path.join(SITE_ROOT, 'manifest.json')));
+  for (const dir of ['popup', 'content', 'background', 'lib', 'icons', 'fonts']) {
+    addDir(path.join(SITE_ROOT, dir), dir);
+  }
+
+  _extZip = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+  return _extZip;
+}
+
+app.get('/download/web-clone-ai.zip', async (_req, res) => {
+  try {
+    const buf = await buildExtensionZip();
+    res.set('Content-Type', 'application/zip');
+    res.set('Content-Disposition', 'attachment; filename="web-clone-ai.zip"');
+    res.send(buf);
+  } catch (e) {
+    console.error('[download]', e.message);
+    res.status(500).json({ error: 'Falha ao gerar o pacote da extensão.' });
+  }
+});
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 
