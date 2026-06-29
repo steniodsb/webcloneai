@@ -523,6 +523,25 @@ class WebClonerAI {
       ? `\n## ✒️ Fontes detectadas\n\n${[...fontNames].slice(0, 8).map(f => `- ${f}`).join('\n')}\n`
       : '';
 
+    // Mídias detectadas
+    const mda = pageData?.media || {};
+    const mediaParts = [];
+    if (mda.videos?.length) mediaParts.push(`- **${mda.videos.length} vídeo(s)**${mda.videos.some(v => v.autoplay) ? ' — há vídeo com autoplay/background' : ''}`);
+    if (mda.audios?.length) mediaParts.push(`- **${mda.audios.length} áudio(s)**`);
+    if (mda.embeds?.length) {
+      const hosts = [...new Set(mda.embeds.map(e => { try { return new URL(e).hostname.replace('www.', ''); } catch { return null; } }).filter(Boolean))].slice(0, 4);
+      mediaParts.push(`- **${mda.embeds.length} embed(s)** (${hosts.join(', ')})`);
+    }
+    const mediaSection = mediaParts.length
+      ? `\n## 🎬 Mídias detectadas\n\n${mediaParts.join('\n')}\n\n> Vídeos/áudios pequenos foram baixados para \`assets/\`; os maiores e os embeds (YouTube, etc.) mantêm a URL original no HTML. Reproduza os mesmos comportamentos (autoplay, loop, mudo) no clone.\n`
+      : '';
+
+    // Efeitos de movimento
+    const motionLibs = (meta.frameworks || []).filter(f => ['GSAP', 'AOS', 'Lottie', 'Swiper', 'Smooth Scroll', 'Framer'].includes(f));
+    const motionSection = (motionLibs.length || pageData?.keyframes?.length)
+      ? `\n## ✨ Efeitos de movimento\n\n${motionLibs.length ? `Bibliotecas de animação detectadas: **${motionLibs.join(', ')}**.\n\n` : ''}${pageData?.keyframes?.length ? `${pageData.keyframes.length} animação(ões) \`@keyframes\` capturada(s) em \`styles/keyframes.css\`.\n\n` : ''}> O CSS de animações (\`@keyframes\`, \`transition\`, \`transform\`) foi capturado e funciona no clone. Animações controladas por JavaScript (scroll-reveal, parallax, timelines) não são copiadas como código — recrie-as usando as screenshots e estas bibliotecas como referência.\n`
+      : '';
+
     return `# Web Clone AI — Instruções para Reprodução
 
 ## Site original
@@ -549,7 +568,7 @@ assets/
 screenshots/          ← 📸 REFERÊNCIA VISUAL — olhe aqui primeiro
 PROMPT.md             ← este arquivo
 \`\`\`
-${shotsSection}${tokensSection}${fontsSection}
+${shotsSection}${tokensSection}${fontsSection}${mediaSection}${motionSection}
 ## 🤖 Prompts prontos para Claude Code / Cursor
 
 ### ① Reproduzir exatamente igual

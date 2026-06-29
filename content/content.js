@@ -123,6 +123,68 @@ function detectFrameworks() {
     found.push({ name: 'GSAP', color: '#88CE02', bg: '#223300' });
   }
 
+  // Svelte
+  if (document.querySelector('[class*="svelte-"]')) {
+    found.push({ name: 'Svelte', color: '#FF3E00', bg: '#3A0E00' });
+  }
+  // Astro
+  if (document.querySelector('astro-island, [astro-island]') ||
+      document.querySelector('meta[name="generator"][content*="Astro"]')) {
+    found.push({ name: 'Astro', color: '#FF5D01', bg: '#3A1500' });
+  }
+  // Angular
+  if (document.querySelector('[ng-version]') || window.ng) {
+    found.push({ name: 'Angular', color: '#DD0031', bg: '#3A000C' });
+  }
+  // Gatsby
+  if (document.querySelector('#___gatsby')) {
+    found.push({ name: 'Gatsby', color: '#9D60FB', bg: '#2A0A4A' });
+  }
+  // WordPress
+  if (document.querySelector('link[href*="wp-content"], link[href*="wp-includes"], meta[name="generator"][content*="WordPress"]')) {
+    found.push({ name: 'WordPress', color: '#3858E9', bg: '#0A1540' });
+  }
+  // Shopify
+  if (window.Shopify || document.querySelector('link[href*="cdn.shopify"], script[src*="shopify"]')) {
+    found.push({ name: 'Shopify', color: '#95BF47', bg: '#1F3008' });
+  }
+  // Wix
+  if (window.wixBiSession || document.querySelector('meta[name="generator"][content*="Wix"]')) {
+    found.push({ name: 'Wix', color: '#FAAD4D', bg: '#3A2400' });
+  }
+  // Squarespace
+  if (document.querySelector('meta[name="generator"][content*="Squarespace"]')) {
+    found.push({ name: 'Squarespace', color: '#FFFFFF', bg: '#1A1A1A' });
+  }
+  // jQuery
+  if (window.jQuery || (window.$ && window.$.fn && window.$.fn.jquery)) {
+    found.push({ name: 'jQuery', color: '#0769AD', bg: '#08283A' });
+  }
+  // Alpine.js
+  if (window.Alpine || document.querySelector('[x-data]')) {
+    found.push({ name: 'Alpine.js', color: '#77C1D2', bg: '#16303A' });
+  }
+  // Three.js / WebGL
+  if (window.THREE || document.querySelector('canvas[data-engine*="three"]')) {
+    found.push({ name: 'Three.js', color: '#FFFFFF', bg: '#2D2D2D' });
+  }
+  // Swiper (carrossel)
+  if (window.Swiper || document.querySelector('.swiper, .swiper-wrapper, .swiper-slide')) {
+    found.push({ name: 'Swiper', color: '#0080FF', bg: '#001A3A' });
+  }
+  // AOS — Animate On Scroll
+  if (window.AOS || document.querySelector('[data-aos]')) {
+    found.push({ name: 'AOS', color: '#E6447B', bg: '#3A0E20' });
+  }
+  // Lenis / Locomotive — smooth scroll
+  if (window.Lenis || document.querySelector('html.lenis, [data-scroll-container], [data-scroll]')) {
+    found.push({ name: 'Smooth Scroll', color: '#C2A878', bg: '#2A2210' });
+  }
+  // Lottie
+  if (window.lottie || document.querySelector('lottie-player, dotlottie-player, [class*="lottie"]')) {
+    found.push({ name: 'Lottie', color: '#00DDB3', bg: '#003A30' });
+  }
+
   return found;
 }
 
@@ -159,6 +221,9 @@ async function extractPage() {
   const imageSet = new Set();
   collectImageUrls(imageSet, base);
 
+  // Mídias (vídeos, áudios, embeds)
+  const media = collectMedia(imageSet, base);
+
   const meta = {
     title: document.title || 'Projeto Exportado',
     description: document.querySelector('meta[name="description"]')?.content || '',
@@ -176,8 +241,43 @@ async function extractPage() {
     keyframes,
     designTokens,
     imageUrls: [...imageSet],
+    media,
     meta,
   };
+}
+
+// Coleta vídeos, áudios e embeds. Posters e mídias baixáveis vão para o `set`.
+function collectMedia(set, base) {
+  const abs = (u) => { try { return new URL(u, base).href; } catch { return null; } };
+  const addable = (u) => { const a = abs(u); if (a && !a.startsWith('data:') && !a.startsWith('blob:')) { set.add(a); return a; } return a; };
+
+  const videos = [];
+  for (const v of document.querySelectorAll('video')) {
+    const srcs = [];
+    if (v.getAttribute('src')) srcs.push(addable(v.getAttribute('src')));
+    for (const s of v.querySelectorAll('source[src]')) srcs.push(addable(s.getAttribute('src')));
+    videos.push({
+      src: srcs.filter(Boolean),
+      poster: v.getAttribute('poster') ? addable(v.getAttribute('poster')) : null,
+      autoplay: v.autoplay, loop: v.loop, muted: v.muted,
+    });
+  }
+
+  const audios = [];
+  for (const a of document.querySelectorAll('audio')) {
+    const srcs = [];
+    if (a.getAttribute('src')) srcs.push(addable(a.getAttribute('src')));
+    for (const s of a.querySelectorAll('source[src]')) srcs.push(addable(s.getAttribute('src')));
+    audios.push({ src: srcs.filter(Boolean), loop: a.loop });
+  }
+
+  const embeds = [];
+  for (const f of document.querySelectorAll('iframe[src]')) {
+    const u = abs(f.getAttribute('src'));
+    if (u && /^https?:/.test(u)) embeds.push(u);
+  }
+
+  return { videos, audios, embeds };
 }
 
 function extractKeyframes() {
