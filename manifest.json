@@ -17,7 +17,7 @@
     "https://api.supabase.co/*"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.supabase.co https://api.supabase.co;"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https: http: data:; img-src 'self' https: http: data: blob:; font-src 'self' https: http: data:; style-src 'self' 'unsafe-inline' https: http:;"
   },
   "action": {
     "default_popup": "popup/popup.html",
