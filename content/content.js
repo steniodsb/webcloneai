@@ -194,8 +194,21 @@ async function extractPage() {
   const base = window.location.href;
   const origin = window.location.origin;
 
-  // Full rendered DOM
-  const html = document.documentElement.outerHTML;
+  // 0. Estabilizar a página ANTES de capturar: rola tudo para disparar lazy-load
+  //    de imagens e revelar animações on-scroll (AOS/GSAP), depois espera as
+  //    imagens decodificarem. Sem isso, o DOM sai com placeholders e seções ocultas.
+  await settlePage();
+
+  // Snapshot fiel do DOM renderizado (JS neutralizado) — fallback visual estático
+  const html = buildSnapshot(base);
+
+  // HTML COMO O SERVIDOR ENTREGA (source original) — base do mirror rodável.
+  // É o que os bundles JS esperam para bootar/hidratar corretamente.
+  const servedHtml = await fetchServedHtml(base);
+
+  // TODOS os recursos que a página realmente carregou (JS, CSS, fontes, imagens,
+  // mídia, XHR/fetch) via Resource Timing + varredura do DOM.
+  const resources = collectResources(base);
 
   // External stylesheet URLs
   const sheetUrls = [];
@@ -242,6 +255,8 @@ async function extractPage() {
 
   return {
     html,
+    servedHtml,
+    resources,
     sheetUrls,
     inlineStyles,
     keyframes,
@@ -254,6 +269,183 @@ async function extractPage() {
     responsive,
     meta,
   };
+}
+
+// Busca o HTML original entregue pelo servidor (antes do JS montar o DOM).
+// É a base correta do mirror: os bundles bootam/hidratam a partir dele.
+async function fetchServedHtml(url) {
+  try {
+    const r = await fetch(url, { credentials: 'include', cache: 'no-store' });
+    if (r.ok) {
+      const t = await r.text();
+      if (/<html[\s>]/i.test(t)) return t;
+    }
+  } catch (_) {}
+  return null; // popup faz fallback para o DOM renderizado
+}
+
+// Enumera TODOS os recursos carregados pela página. Resource Timing captura até
+// os chunks JS/CSS e fontes que o DOM não referencia diretamente. initiatorType
+// permite distinguir asset estático (localizar) de chamada de API (manter origem).
+function collectResources(base) {
+  const map = new Map(); // absUrl -> initiatorType
+  const add = (u, type) => {
+    if (!u) return;
+    let a; try { a = new URL(u, base).href; } catch { return; }
+    if (!/^https?:/i.test(a)) return;
+    if (!map.has(a)) map.set(a, type || 'other');
+  };
+
+  try {
+    for (const e of performance.getEntriesByType('resource')) add(e.name, e.initiatorType);
+  } catch (_) {}
+
+  for (const s of document.querySelectorAll('script[src]')) add(s.getAttribute('src'), 'script');
+  for (const l of document.querySelectorAll('link[href]')) {
+    const rel = (l.getAttribute('rel') || '').toLowerCase();
+    if (/stylesheet|preload|modulepreload|icon|manifest|prefetch/.test(rel)) {
+      add(l.getAttribute('href'), rel.includes('stylesheet') ? 'css' : 'link');
+    }
+  }
+  for (const im of document.querySelectorAll('img')) {
+    if (im.currentSrc) add(im.currentSrc, 'img');
+    if (im.getAttribute('src')) add(im.getAttribute('src'), 'img');
+  }
+  for (const el of document.querySelectorAll('[srcset], [data-srcset]')) {
+    const set = el.getAttribute('srcset') || el.getAttribute('data-srcset') || '';
+    for (const p of set.split(',')) { const u = p.trim().split(/\s+/)[0]; if (u) add(u, 'img'); }
+  }
+  for (const v of document.querySelectorAll('video, audio, source, track')) {
+    if (v.getAttribute('src')) add(v.getAttribute('src'), 'media');
+    if (v.getAttribute('poster')) add(v.getAttribute('poster'), 'img');
+  }
+
+  return [...map.entries()].map(([url, type]) => ({ url, type }));
+}
+
+// ── Estabilização da página (lazy-load + reveal) ──────────────────────────────
+
+function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Rola a página inteira (para baixo e de volta) para forçar o carregamento de
+// imagens lazy e disparar animações on-scroll, depois espera as imagens ficarem
+// prontas. Ao final, restaura a posição original de scroll.
+async function settlePage() {
+  const startY = window.scrollY;
+  try {
+    const step = Math.max(200, Math.round(window.innerHeight * 0.9));
+    const maxScrolls = 60; // trava de segurança para páginas muito longas
+    let last = -1, i = 0;
+    for (; i < maxScrolls; i++) {
+      const h = document.documentElement.scrollHeight;
+      const y = Math.min(i * step, h);
+      window.scrollTo(0, y);
+      await _sleep(120);
+      if (y >= h - window.innerHeight || y === last) break;
+      last = y;
+    }
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    await _sleep(200);
+    await waitForImages(2500);
+  } catch (_) {
+  } finally {
+    window.scrollTo(0, startY);
+    await _sleep(150);
+  }
+}
+
+// Espera as <img> visíveis terminarem de decodificar (com timeout global).
+function waitForImages(timeoutMs) {
+  const imgs = [...document.images].filter(im => im.loading !== 'lazy' || im.getBoundingClientRect().top < document.documentElement.scrollHeight);
+  const pending = imgs.filter(im => !im.complete || im.naturalWidth === 0);
+  if (!pending.length) return Promise.resolve();
+  return Promise.race([
+    Promise.all(pending.map(im => new Promise(res => {
+      im.addEventListener('load', res, { once: true });
+      im.addEventListener('error', res, { once: true });
+    }))),
+    _sleep(timeoutMs),
+  ]);
+}
+
+// ── Snapshot fiel do DOM (freeze) ─────────────────────────────────────────────
+
+// Clona o DOM renderizado e o transforma num arquivo estático fiel:
+//  • promove atributos lazy (data-src, data-srcset, data-bg) para os reais
+//  • fixa o src escolhido pelo browser (currentSrc) para casar com o srcset
+//  • remove <script> executável (mantém JSON-LD) — evita que o runtime do
+//    framework re-hidrate e destrua o layout capturado
+//  • remove integrity/crossorigin (senão o browser bloqueia CSS/JS reescrito)
+//  • remove <base>, meta CSP e meta refresh (interferem no arquivo local)
+function buildSnapshot(base) {
+  // Mapeia o src REAL resolvido pelo browser para cada <img> ANTES de clonar
+  // (currentSrc reflete a escolha de srcset/densidade e o lazy já carregado).
+  const liveImgs = document.querySelectorAll('img');
+  const srcById = new Map();
+  liveImgs.forEach((im, i) => {
+    im.setAttribute('data-wca-idx', String(i));
+    if (im.currentSrc) srcById.set(String(i), im.currentSrc);
+  });
+
+  const root = document.documentElement.cloneNode(true);
+
+  // Restaura o DOM vivo (remove o marcador temporário)
+  liveImgs.forEach(im => im.removeAttribute('data-wca-idx'));
+
+  // 1. Imagens: aplica o src real e promove atributos de lazy-load
+  for (const img of root.querySelectorAll('img')) {
+    const idx = img.getAttribute('data-wca-idx');
+    img.removeAttribute('data-wca-idx');
+    const real = idx && srcById.get(idx);
+    const lazy = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') ||
+                 img.getAttribute('data-original') || img.getAttribute('data-lazy');
+    if (real) img.setAttribute('src', real);
+    else if (lazy) img.setAttribute('src', lazy);
+    const lazySet = img.getAttribute('data-srcset') || img.getAttribute('data-lazy-srcset');
+    if (lazySet && !img.getAttribute('srcset')) img.setAttribute('srcset', lazySet);
+    img.removeAttribute('loading');
+    img.removeAttribute('data-src'); img.removeAttribute('data-lazy-src');
+    img.removeAttribute('data-original'); img.removeAttribute('data-lazy');
+  }
+
+  // 2. <source> dentro de <picture>: promove data-srcset
+  for (const s of root.querySelectorAll('picture source, video source, audio source')) {
+    const ds = s.getAttribute('data-srcset');
+    if (ds && !s.getAttribute('srcset')) s.setAttribute('srcset', ds);
+    const dsrc = s.getAttribute('data-src');
+    if (dsrc && !s.getAttribute('src')) s.setAttribute('src', dsrc);
+  }
+
+  // 3. Backgrounds via atributos lazy (data-bg, data-background, data-background-image)
+  for (const el of root.querySelectorAll('[data-bg], [data-background], [data-background-image]')) {
+    const bg = el.getAttribute('data-bg') || el.getAttribute('data-background') || el.getAttribute('data-background-image');
+    if (bg && !/background-image/i.test(el.getAttribute('style') || '')) {
+      const prev = el.getAttribute('style') || '';
+      el.setAttribute('style', `${prev}${prev && !prev.trim().endsWith(';') ? ';' : ''}background-image:url('${bg}');`);
+    }
+  }
+
+  // 4. Remove scripts executáveis (mantém JSON-LD e dados estruturados)
+  for (const sc of root.querySelectorAll('script')) {
+    const type = (sc.getAttribute('type') || '').toLowerCase();
+    if (type === 'application/ld+json') continue;
+    sc.remove();
+  }
+
+  // 5. Remove atributos que bloqueiam recursos reescritos localmente
+  for (const el of root.querySelectorAll('[integrity]')) el.removeAttribute('integrity');
+  for (const el of root.querySelectorAll('link[crossorigin], script[crossorigin]')) el.removeAttribute('crossorigin');
+
+  // 6. Remove <base>, CSP e refresh que atrapalham o arquivo local
+  for (const b of root.querySelectorAll('base')) b.remove();
+  for (const m of root.querySelectorAll('meta[http-equiv]')) {
+    const eq = (m.getAttribute('http-equiv') || '').toLowerCase();
+    if (eq === 'content-security-policy' || eq === 'refresh') m.remove();
+  }
+  // Preloads/prefetch de JS não têm mais função num snapshot estático
+  for (const l of root.querySelectorAll('link[rel="modulepreload"], link[rel="preload"][as="script"], link[rel="prefetch"]')) l.remove();
+
+  return '<!DOCTYPE html>\n' + root.outerHTML;
 }
 
 // ── Design specs computados (valores REAIS resolvidos pelo browser) ───────────
@@ -458,9 +650,19 @@ function collectImageUrls(set, base) {
     } catch (_) {}
   };
 
-  for (const img of document.querySelectorAll('img[src]')) add(img.src);
-  for (const el of document.querySelectorAll('[srcset]')) {
-    for (const part of el.srcset.split(',')) {
+  for (const img of document.querySelectorAll('img')) {
+    if (img.currentSrc) add(img.currentSrc);
+    if (img.getAttribute('src')) add(img.getAttribute('src'));
+  }
+  // Atributos de lazy-load comuns (src e srcset adiados)
+  for (const el of document.querySelectorAll('[data-src], [data-lazy-src], [data-original], [data-lazy]')) {
+    const u = el.getAttribute('data-src') || el.getAttribute('data-lazy-src') ||
+              el.getAttribute('data-original') || el.getAttribute('data-lazy');
+    if (u) add(u);
+  }
+  for (const el of document.querySelectorAll('[srcset], [data-srcset], [data-lazy-srcset]')) {
+    const set = el.getAttribute('srcset') || el.getAttribute('data-srcset') || el.getAttribute('data-lazy-srcset') || '';
+    for (const part of set.split(',')) {
       const u = part.trim().split(/\s+/)[0];
       if (u) add(u);
     }
@@ -470,6 +672,20 @@ function collectImageUrls(set, base) {
     for (const m of attr.matchAll(/url\(['"]?([^'")\s]+)['"]?\)/g)) {
       if (!m[1].startsWith('data:')) add(m[1]);
     }
+  }
+  // Backgrounds computados (aplicados por classe CSS) dos elementos visíveis
+  for (const el of [...document.querySelectorAll('body *')].slice(0, 2500)) {
+    const bg = getComputedStyle(el).backgroundImage;
+    if (bg && bg !== 'none' && bg.includes('url(')) {
+      for (const m of bg.matchAll(/url\(['"]?([^'")\s]+)['"]?\)/g)) {
+        if (!m[1].startsWith('data:')) add(m[1]);
+      }
+    }
+  }
+  // Atributos de background lazy
+  for (const el of document.querySelectorAll('[data-bg], [data-background], [data-background-image]')) {
+    const u = el.getAttribute('data-bg') || el.getAttribute('data-background') || el.getAttribute('data-background-image');
+    if (u) add(u);
   }
   for (const link of document.querySelectorAll('link[rel*="icon"][href]')) add(link.href);
   const og = document.querySelector('meta[property="og:image"][content]');
