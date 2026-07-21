@@ -19,6 +19,8 @@ const {
   SUPABASE_URL,
   SUPABASE_SERVICE_KEY,   // chave service_role (secreta) — NÃO é a anon key
   WEBHOOK_SECRET,         // string secreta para validar webhooks Asaas
+  RESEND_API_KEY,         // chave do Resend — entrega confiável de e-mail
+  RESEND_FROM = 'Web Clone AI <acesso@webcloneai.com.br>',
   PORT = 3000,
 } = process.env;
 
@@ -133,6 +135,45 @@ async function supaAdmin(method, path, body) {
   return json;
 }
 
+// ── E-mail de acesso (Resend, com fallback pro e-mail nativo do Supabase) ─────
+
+async function generateAccessLink(email) {
+  const redirect = process.env.PASSWORD_RESET_URL || 'https://webcloneai.com.br/redefinir-senha';
+  const r = await supaAdmin('POST', '/auth/v1/admin/generate_link', {
+    type:        'recovery',
+    email,
+    redirect_to: redirect,
+  });
+  return r?.action_link || r?.properties?.action_link || redirect;
+}
+
+async function sendAccessEmail(email) {
+  // Sem Resend configurado → cai no e-mail nativo do Supabase (comportamento antigo)
+  if (!RESEND_API_KEY) {
+    const redirect = process.env.PASSWORD_RESET_URL || 'https://webcloneai.com.br/redefinir-senha';
+    await supaAdmin('POST', `/auth/v1/recover?redirect_to=${encodeURIComponent(redirect)}`, { email });
+    return;
+  }
+
+  const link       = await generateAccessLink(email);
+  const membersUrl = process.env.MEMBERS_URL || 'https://webcloneai.com.br/membros';
+  const html = `<!doctype html><html><body style="margin:0;background:#0a0b0e;font-family:Arial,Helvetica,sans-serif;padding:32px">
+    <div style="max-width:520px;margin:0 auto;background:#111318;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:36px 32px;color:#fff">
+      <h1 style="font-size:22px;margin:0 0 8px">Seu acesso ao Web Clone AI</h1>
+      <p style="color:#b8bcc4;font-size:15px;line-height:1.6;margin:0 0 24px">Pagamento confirmado! Clique abaixo para <strong style="color:#fff">definir sua senha</strong> e entrar na área de membros — com a extensão e os tutoriais.</p>
+      <a href="${link}" style="display:inline-block;background:#fff;color:#0a0b0e;text-decoration:none;font-weight:700;padding:14px 26px;border-radius:100px;font-size:15px">Definir senha e acessar</a>
+      <p style="color:#7b8090;font-size:12px;line-height:1.6;margin:26px 0 0">Se o botão não abrir, use este link:<br><span style="color:#a8adb8;word-break:break-all">${link}</span></p>
+      <p style="color:#7b8090;font-size:12px;margin:18px 0 0">Área de membros: ${membersUrl}</p>
+    </div></body></html>`;
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method:  'POST',
+    headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ from: RESEND_FROM, to: [email], subject: 'Seu acesso ao Web Clone AI', html }),
+  });
+  if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text().catch(() => '')}`);
+}
+
 async function createSupabaseUser(email, plan, asaasCustomerId, asaasPaymentId) {
   // 1. Criar usuário auth
   const userRes = await supaAdmin('POST', '/auth/v1/admin/users', {
@@ -152,12 +193,11 @@ async function createSupabaseUser(email, plan, asaasCustomerId, asaasPaymentId) 
     asaas_payment_id:    asaasPaymentId,
   }]);
 
-  // 3. Enviar e-mail para o cliente definir a senha (best-effort — não derruba o provisioning)
+  // 3. Enviar e-mail de acesso (Resend, com fallback) — best-effort, não derruba o provisioning
   try {
-    const resetUrl = process.env.PASSWORD_RESET_URL || 'https://webcloneai.com.br/redefinir-senha';
-    await supaAdmin('POST', `/auth/v1/recover?redirect_to=${encodeURIComponent(resetUrl)}`, { email });
+    await sendAccessEmail(email);
   } catch (e) {
-    console.error('[email] falha ao enviar link de senha:', e.message);
+    console.error('[email] falha ao enviar acesso:', e.message);
   }
 
   return userId;
