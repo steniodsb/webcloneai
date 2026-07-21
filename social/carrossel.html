@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080, initial-scale=1">
+<title>Web Clone AI — Carrossel</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#0a0a0a}
+body{font-family:'DM Sans',-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+.mono{font-family:'JetBrains Mono',monospace}
+.grad{background:linear-gradient(135deg,#B8B8B8 0%,#FFFFFF 48%,#8E8E8E 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+
+.post{position:relative;width:1080px;height:1080px;overflow:hidden;display:none;flex-direction:column;background:#000;color:rgba(248,248,248,.96)}
+.post:target{display:flex}
+body:not(:has(.post:target)) #c1{display:flex}
+
+.glow{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 45% at 50% -4%,rgba(225,225,225,.12) 0%,transparent 60%),
+  radial-gradient(circle 620px at 72% 76%,rgba(190,190,200,.10) 0%,transparent 62%)}
+.fgrid{position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.55;
+  background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);
+  background-size:54px 54px;-webkit-mask-image:radial-gradient(ellipse 80% 80% at 50% 42%,#000 18%,transparent 80%);mask-image:radial-gradient(ellipse 80% 80% at 50% 42%,#000 18%,transparent 80%)}
+
+.inner{position:relative;z-index:10;flex:1;display:flex;flex-direction:column;padding:70px}
+.top{display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:14px}
+.brand img{width:48px;height:48px;border-radius:12px;display:block;box-shadow:0 8px 22px -8px rgba(0,0,0,.6)}
+.brand .bn{font-size:21px;font-weight:700;letter-spacing:-.4px;color:#fff}
+.handle{font-size:16px;font-weight:600;color:rgba(200,200,200,.55)}
+
+.tag{display:inline-flex;align-items:center;gap:9px;align-self:flex-start;padding:9px 17px;border-radius:100px;font-size:13px;font-weight:700;letter-spacing:1.3px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(232,232,232,.85)}
+.tag .dot{width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,#fff,#9a9a9a);box-shadow:0 0 10px rgba(255,255,255,.7)}
+
+h1{font-weight:800;letter-spacing:-2.2px;line-height:1.0}
+.sub{font-weight:400;line-height:1.42;color:rgba(205,205,205,.62)}
+.spacer{flex:1}
+.footline{display:flex;align-items:center;justify-content:space-between;font-size:15px;font-weight:500;color:rgba(185,185,185,.48)}
+.swipe{display:flex;align-items:center;gap:9px;font-weight:600;color:rgba(220,220,220,.6)}
+
+/* progress dots */
+.dots{display:flex;gap:7px;align-items:center}
+.dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.2)}
+.dots i.on{background:#fff;width:22px;border-radius:4px}
+
+/* ===== browser mockup ===== */
+.browser{border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 50px 90px -34px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.08);width:100%}
+.bbar{display:flex;align-items:center;gap:8px;padding:12px 15px;background:#1c1c1e;border-bottom:1px solid rgba(255,255,255,.06)}
+.bbar .d{width:11px;height:11px;border-radius:50%}
+.bbar .d.r{background:#ff5f57}.bbar .d.y{background:#febc2e}.bbar .d.g{background:#28c840}
+.bbar .url{margin-left:10px;flex:1;height:26px;border-radius:7px;background:#2c2c2e;display:flex;align-items:center;padding:0 12px;gap:7px;font-size:12.5px;color:rgba(255,255,255,.55);font-weight:500}
+.bbar .url::before{content:'';width:9px;height:9px;border-radius:2px;border:1.5px solid rgba(255,255,255,.35);flex-shrink:0}
+.bbar .exts{display:flex;align-items:center;gap:7px;margin-left:8px}
+.bbar .exts .pz{width:24px;height:24px;border-radius:6px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:12px;color:rgba(255,255,255,.6)}
+.bbar .exts img{width:26px;height:26px;border-radius:7px;display:block}
+.bbar .exts .hl{box-shadow:0 0 0 3px rgba(255,255,255,.85);border-radius:8px}
+.bview{position:relative;overflow:hidden}
+
+/* mini site */
+.site{padding:20px 22px}
+.site .snav{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.site .slogo{width:34px;height:14px;border-radius:5px}
+.site .slinks{display:flex;gap:12px}.site .slinks i{display:block;width:30px;height:7px;border-radius:4px;opacity:.55}
+.site .sbtn{width:56px;height:22px;border-radius:7px}
+.site .shero{display:flex;gap:20px;align-items:center;margin-bottom:20px}
+.site .sh-tx{flex:1;display:flex;flex-direction:column;gap:9px}
+.site .sh-tx .l{height:13px;border-radius:5px}.site .sh-tx .l.w1{width:92%}.site .sh-tx .l.w2{width:74%}.site .sh-tx .l.w3{width:50%;opacity:.55;height:9px}
+.site .sh-tx .sc{margin-top:6px;width:74px;height:26px;border-radius:8px}
+.site .sh-img{width:180px;height:132px;border-radius:12px;flex-shrink:0}
+.site .scards{display:flex;gap:12px}.site .scards .c{flex:1;height:74px;border-radius:11px}
+.site.warm{background:#fbf7f2}
+.site.warm .slogo{background:#2a2320}.site.warm .slinks i{background:#2a2320}.site.warm .sbtn{background:#1c1714}
+.site.warm .sh-tx .l{background:#e6ddd2}.site.warm .sh-tx .l.w1{background:#2a2320}.site.warm .sh-tx .sc{background:#c8935f}
+.site.warm .sh-img{background:linear-gradient(135deg,#f2c9a0,#c98a5a 60%,#8a5a3a)}
+.site.warm .scards .c{background:#f0e7db}
+.site.cool{background:#f3f4f6}
+.site.cool .slogo{background:#20242c}.site.cool .slinks i{background:#20242c}.site.cool .sbtn{background:#20242c}
+.site.cool .sh-tx .l{background:#dfe2e8}.site.cool .sh-tx .l.w1{background:#20242c}.site.cool .sh-tx .sc{background:#5b6472}
+.site.cool .sh-img{background:linear-gradient(135deg,#c7cdd8,#8b93a3 60%,#4a515e)}
+.site.cool .scards .c{background:#e7eaef}
+/* dark variant = "editado pela IA" */
+.site.night{background:#1c1c22}
+.site.night .slogo{background:#f2f2f2}.site.night .slinks i{background:#f2f2f2}.site.night .sbtn{background:linear-gradient(135deg,#fff,#bdbdbd)}
+.site.night .sh-tx .l{background:#3a3a44}.site.night .sh-tx .l.w1{background:#f2f2f2}.site.night .sh-tx .sc{background:linear-gradient(135deg,#fff,#bdbdbd)}
+.site.night .sh-img{background:linear-gradient(135deg,#6a6a7a,#2a2a34)}
+.site.night .scards .c{background:#2a2a33}
+
+.cursor{position:absolute;width:34px;height:34px;z-index:30;filter:drop-shadow(0 3px 5px rgba(0,0,0,.6))}
+
+/* extension popup */
+.extpop{width:250px;border-radius:16px;background:#141416;border:1px solid rgba(255,255,255,.12);padding:18px;box-shadow:0 30px 60px -20px rgba(0,0,0,.85)}
+.extpop .eh{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.extpop .eh img{width:30px;height:30px;border-radius:8px}
+.extpop .eh span{font-size:14px;font-weight:700;color:#fff}
+.extpop .erow{display:flex;align-items:center;gap:8px;font-size:11.5px;color:rgba(190,190,190,.65);margin-bottom:12px}
+.extpop .ebtn{height:44px;border-radius:11px;background:linear-gradient(135deg,#fff,#cfcfcf);color:#0a0a0a;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px}
+
+/* store card */
+.store{background:#fff;padding:34px}
+.store .sc-row{display:flex;align-items:center;gap:20px}
+.store img{width:76px;height:76px;border-radius:18px;display:block}
+.store .sc-t{font-size:24px;font-weight:800;color:#0a0a0a;letter-spacing:-.6px}
+.store .sc-d{font-size:14px;color:rgba(20,20,20,.5);margin-top:4px}
+.store .sc-btn{margin-left:auto;background:#0a0a0a;color:#fff;font-size:15px;font-weight:700;padding:14px 24px;border-radius:11px;white-space:nowrap}
+.store .sc-meta{display:flex;gap:18px;margin-top:24px;padding-top:20px;border-top:1px solid rgba(0,0,0,.08);font-size:13px;color:rgba(20,20,20,.45);font-weight:600}
+
+/* file chips */
+.chip{display:inline-flex;align-items:center;gap:9px;padding:11px 16px;border-radius:12px;font-size:16px;font-weight:600;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);color:#eaeaea}
+.chip .ci{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;
+  background:linear-gradient(135deg,#e6e6e6,#9a9a9a);color:#111;font-family:'JetBrains Mono',monospace}
+
+/* ===== AI CHAT mockup ===== */
+.chat{width:100%;border-radius:20px;background:#141416;border:1px solid rgba(255,255,255,.1);overflow:hidden;box-shadow:0 50px 90px -34px rgba(0,0,0,.85)}
+.chat-h{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.07);background:#18181b}
+.chat-h .cdot{width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,#fff,#9a9a9a)}
+.chat-h span{font-size:14px;font-weight:700;color:rgba(240,240,240,.9)}
+.chat-h .pill{margin-left:auto;font-size:11px;font-weight:700;letter-spacing:.6px;color:rgba(190,190,190,.6);border:1px solid rgba(255,255,255,.12);padding:5px 10px;border-radius:100px}
+.chat-b{padding:22px 20px;display:flex;flex-direction:column;gap:14px}
+.bub{max-width:88%;padding:14px 16px;border-radius:14px;font-size:16px;line-height:1.4}
+.bub.me{align-self:flex-end;background:linear-gradient(135deg,#f2f2f2,#d2d2d2);color:#0a0a0a;font-weight:600;border-bottom-right-radius:5px}
+.bub.ia{align-self:flex-start;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);color:rgba(232,232,232,.9);border-bottom-left-radius:5px}
+.attach{align-self:flex-end;display:inline-flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);margin-bottom:2px}
+.attach .fi{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#e6e6e6,#9a9a9a);color:#111;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.attach .fn{font-size:14px;font-weight:700;color:#eee}
+.attach .fs{font-size:12px;color:rgba(180,180,180,.6)}
+
+/* ===== published badge ===== */
+.live{position:absolute;z-index:25;display:flex;align-items:center;gap:9px;background:#0f1a10;border:1px solid rgba(40,200,64,.4);color:#4ade5f;
+  font-size:15px;font-weight:800;padding:11px 17px;border-radius:12px;box-shadow:0 16px 34px -10px rgba(0,0,0,.7)}
+.live .lp{width:9px;height:9px;border-radius:50%;background:#28c840;box-shadow:0 0 12px #28c840}
+
+/* ===== IG comment mockup (slide 6) ===== */
+.igcard{width:560px;border-radius:22px;background:#141416;border:1px solid rgba(255,255,255,.11);overflow:hidden;box-shadow:0 50px 90px -30px rgba(0,0,0,.9)}
+.ig-h{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.07)}
+.ig-h img{width:38px;height:38px;border-radius:50%;display:block}
+.ig-h .ign{font-size:15px;font-weight:700;color:#fff}
+.ig-b{padding:18px}
+.ig-cm{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:100px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
+.ig-cm .av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#d8d8d8,#8a8a8a);flex-shrink:0}
+.ig-cm .tx{font-size:19px;font-weight:800;color:#fff;letter-spacing:-.3px}
+.ig-cm .car{width:2px;height:22px;background:#fff;opacity:.9}
+.ig-cm .pub{margin-left:auto;font-size:15px;font-weight:800;color:#7cc0ff}
+.ig-note{display:flex;align-items:center;gap:10px;margin-top:16px;font-size:14px;color:rgba(190,190,190,.6)}
+
+/* ============ per-slide ============ */
+/* C1 cover */
+#c1 h1{font-size:76px;margin-top:26px}
+#c1 .hook{font-size:44px;font-weight:800;letter-spacing:-1.4px;margin-top:26px}
+#c1 .stage{position:absolute;left:0;right:0;top:560px;bottom:96px;perspective:1800px;z-index:5}
+#c1 .ghost{position:absolute;right:230px;top:0;width:430px;transform:rotateX(6deg) rotateY(-18deg) rotate(-2deg);opacity:.3}
+#c1 .front{position:absolute;right:56px;top:58px;width:530px;transform:rotateX(6deg) rotateY(-18deg) rotate(-1deg)}
+#c1 .chips{position:absolute;left:60px;top:110px;display:flex;flex-direction:column;gap:13px;z-index:20}
+
+/* step slides */
+.stepslide h1{font-size:68px;margin-top:22px}
+.stepslide .sub{font-size:22px;max-width:640px;margin-top:16px}
+.stepslide .visual{margin-top:auto;margin-bottom:auto;width:100%;display:flex;justify-content:center;position:relative}
+
+#c2 .visual .browser{width:820px}
+#c2 .cursor{right:96px;top:120px}
+#c3 .visual{align-items:center;gap:0}
+#c3 .browser{width:640px}
+#c3 .extpop{position:absolute;right:60px;top:-18px;z-index:20}
+#c3 .cursor{right:92px;top:92px}
+#c4 .chat{width:800px}
+#c5 .browser{width:760px;box-shadow:0 50px 90px -30px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.16),0 0 90px -20px rgba(190,190,205,.22)}
+#c5 .live{right:150px;top:-16px}
+
+/* C6 CTA */
+#c6 h1{font-size:74px;margin-top:24px}
+#c6 .sub{font-size:23px;max-width:620px;margin-top:18px}
+#c6 .visual{margin-top:auto;margin-bottom:auto;display:flex;justify-content:center;width:100%}
+#c6 .word{display:inline-block;background:linear-gradient(135deg,#ffffff,#c8c8c8);color:#0a0a0a;padding:2px 18px;border-radius:14px;
+  -webkit-text-fill-color:#0a0a0a;transform:rotate(-1.5deg)}
+</style>
+</head>
+<body>
+
+<!-- ===== SLIDE 1 — CAPA ===== -->
+<section class="post" id="c1">
+  <div class="glow"></div><div class="fgrid"></div>
+  <div class="inner">
+    <div class="top">
+      <div class="brand"><img src="logo.webp" alt=""><span class="bn">Web Clone AI</span></div>
+      <div class="handle">@webcloneai</div>
+    </div>
+    <h1>Clone o site que quiser,<br>edite do seu jeito<br>e <span class="grad">publique.</span></h1>
+    <div class="hook grad">Como funciona?</div>
+
+    <div class="stage">
+      <div class="browser ghost">
+        <div class="bbar"><span class="d r"></span><span class="d y"></span><span class="d g"></span><div class="url">site-original.com</div></div>
+        <div class="bview"><div class="site cool"><div class="snav"><div class="slogo"></div><div class="slinks"><i></i><i></i><i></i></div><div class="sbtn"></div></div><div class="shero"><div class="sh-tx"><div class="l w1"></div><div class="l w2"></div><div class="l w3"></div><div class="sc"></div></div><div class="sh-img"></div></div><div class="scards"><div class="c"></div><div class="c"></div><div class="c"></div></div></div></div>
+      </div>
+      <div class="browser front">
+        <div class="bbar"><span class="d r"></span><span class="d y"></span><span class="d g"></span><div class="url">seu-site.com</div></div>
+        <div class="bview"><div class="site warm"><div class="snav"><div class="slogo"></div><div class="slinks"><i></i><i></i><i></i></div><div class="sbtn"></div></div><div class="shero"><div class="sh-tx"><div class="l w1"></div><div class="l w2"></div><div class="l w3"></div><div class="sc"></div></div><div class="sh-img"></div></div><div class="scards"><div class="c"></div><div class="c"></div><div class="c"></div></div></div></div>
+      </div>
+      <div class="chips">
+        <span class="chip"><span class="ci">1</span>Instale</span>
+        <span class="chip"><span class="ci">2</span>Clone</span>
+        <span class="chip"><span class="ci">3</span>Edite com IA</span>
+        <span class="chip"><span class="ci">4</span>Publique</span>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="footline"><div class="dots"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div><span class="swipe">arraste&nbsp;&nbsp;→</span></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 2 — INSTALE A EXTENSÃO ===== -->
+<section class="post stepslide" id="c2">
+  <div class="glow"></div><div class="fgrid"></div>
+  <div class="inner">
+    <div class="top">
+      <div class="brand"><img src="logo.webp" alt=""><span class="bn">Web Clone AI</span></div>
+      <div class="handle">@webcloneai</div>
+    </div>
+    <div style="margin-top:34px">
+      <div class="tag"><span class="dot"></span>PASSO&nbsp;1&nbsp;DE&nbsp;4</div>
+      <h1>Instale a <span class="grad">extensão.</span></h1>
+      <p class="sub">Direto na Chrome Web Store. Um clique em "Adicionar ao Chrome" e o ícone fica na sua barra.</p>
+    </div>
+    <div class="visual">
+      <div class="browser">
+        <div class="bbar"><span class="d r"></span><span class="d y"></span><span class="d g"></span><div class="url">chrome.google.com/webstore</div>
+          <div class="exts"><span class="pz">◈</span><img class="hl" src="logo.webp" alt=""></div>
+        </div>
+        <div class="bview">
+          <div class="store">
+            <div class="sc-row">
+              <img src="logo.webp" alt="">
+              <div><div class="sc-t">Web Clone AI</div><div class="sc-d">Clone qualquer site com um clique.</div></div>
+              <div class="sc-btn">Adicionar ao Chrome</div>
+            </div>
+            <div class="sc-meta"><span>★★★★★  5,0</span><span>Extensão · Ferramentas</span><span>Grátis para instalar</span></div>
+          </div>
+        </div>
+      </div>
+      <svg class="cursor" viewBox="0 0 28 28"><path d="M6 3 L6 25 L12 19 L15.5 27 L19 25.3 L15.4 17.6 L23 17.6 Z" fill="#fff" stroke="#111" stroke-width="1.3" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="footline"><div class="dots"><i></i><i class="on"></i><i></i><i></i><i></i><i></i></div><span class="swipe">arraste&nbsp;&nbsp;→</span></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 3 — COPIE O SITE ===== -->
+<section class="post stepslide" id="c3">
+  <div class="glow"></div><div class="fgrid"></div>
+  <div class="inner">
+    <div class="top">
+      <div class="brand"><img src="logo.webp" alt=""><span class="bn">Web Clone AI</span></div>
+      <div class="handle">@webcloneai</div>
+    </div>
+    <div style="margin-top:34px">
+      <div class="tag"><span class="dot"></span>PASSO&nbsp;2&nbsp;DE&nbsp;4</div>
+      <h1>Copie o <span class="grad">site.</span></h1>
+      <p class="sub">Abra o site que você ama, clique em "Clonar &amp; Baixar" e pronto: HTML, CSS, imagens e fontes na sua máquina.</p>
+    </div>
+    <div class="visual">
+      <div class="browser">
+        <div class="bbar"><span class="d r"></span><span class="d y"></span><span class="d g"></span><div class="url">site-que-voce-ama.com</div>
+          <div class="exts"><img src="logo.webp" alt=""></div>
+        </div>
+        <div class="bview"><div class="site warm"><div class="snav"><div class="slogo"></div><div class="slinks"><i></i><i></i><i></i></div><div class="sbtn"></div></div><div class="shero"><div class="sh-tx"><div class="l w1"></div><div class="l w2"></div><div class="l w3"></div><div class="sc"></div></div><div class="sh-img"></div></div><div class="scards"><div class="c"></div><div class="c"></div><div class="c"></div></div></div></div>
+      </div>
+      <div class="extpop">
+        <div class="eh"><img src="logo.webp" alt=""><span>Web Clone AI</span></div>
+        <div class="erow">◈ Página pronta para clonar</div>
+        <div class="ebtn">⬇ Clonar &amp; Baixar</div>
+      </div>
+      <svg class="cursor" viewBox="0 0 28 28"><path d="M6 3 L6 25 L12 19 L15.5 27 L19 25.3 L15.4 17.6 L23 17.6 Z" fill="#fff" stroke="#111" stroke-width="1.3" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="footline"><div class="dots"><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div><span class="swipe">arraste&nbsp;&nbsp;→</span></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 4 — EDITE COM SUA IA ===== -->
+<section class="post stepslide" id="c4">
+  <div class="glow"></div><div class="fgrid"></div>
+  <div class="inner">
+    <div class="top">
+      <div class="brand"><img src="logo.webp" alt=""><span class="bn">Web Clone AI</span></div>
+      <div class="handle">@webcloneai</div>
+    </div>
+    <div style="margin-top:34px">
+      <div class="tag"><span class="dot"></span>PASSO&nbsp;3&nbsp;DE&nbsp;4</div>
+      <h1>Jogue na sua IA e<br><span class="grad">edite do seu jeito.</span></h1>
+      <p class="sub">Coloque o arquivo gerado na IA que você preferir — Claude, ChatGPT, Cursor, Gemini — e peça o que quiser. O clone é só o começo.</p>
+    </div>
+    <div class="visual">
+      <div class="chat">
+        <div class="chat-h"><span class="cdot"></span><span>Sua IA de escolha</span><span class="pill">CLAUDE · CHATGPT · CURSOR · GEMINI</span></div>
+        <div class="chat-b">
+          <div class="attach"><span class="fi">◧</span><div><div class="fn">site-clonado.zip</div><div class="fs">html · css · imagens · fontes</div></div></div>
+          <div class="bub me">Troca as cores pro meu tema escuro, muda o título pra minha marca e deixa o botão maior.</div>
+          <div class="bub ia">Pronto ✦ Atualizei o CSS, o texto do topo e o CTA. Quer que eu ajuste o mobile também?</div>
+        </div>
+      </div>
+    </div>
+    <div class="footline"><div class="dots"><i></i><i></i><i></i><i class="on"></i><i></i><i></i></div><span class="swipe">arraste&nbsp;&nbsp;→</span></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 5 — PUBLIQUE ===== -->
+<section class="post stepslide" id="c5">
+  <div class="glow"></div><div class="fgrid"></div>
+  <div class="inner">
+    <div class="top">
+      <div class="brand"><img src="logo.webp" alt=""><span class="bn">Web Clone AI</span></div>
+      <div class="handle">@webcloneai</div>
+    </div>
+    <div style="margin-top:34px">
+      <div class="tag"><span class="dot"></span>PASSO&nbsp;4&nbsp;DE&nbsp;4</div>
+      <h1>Publique o <span class="grad">site.</span></h1>
+      <p class="sub">Suba os arquivos onde quiser e coloque no ar com o seu domínio. Do clone à publicação, sem depender de ninguém.</p>
+    </div>
+    <div class="visual">
+      <div class="browser">
+        <div class="bbar"><span class="d r"></span><span class="d y"></span><span class="d g"></span><div class="url">seu-site.com.br</div></div>
+        <div class="bview"><div class="site night"><div class="snav"><div class="slogo"></div><div class="slinks"><i></i><i></i><i></i></div><div class="sbtn"></div></div><div class="shero"><div class="sh-tx"><div class="l w1"></div><div class="l w2"></div><div class="l w3"></div><div class="sc"></div></div><div class="sh-img"></div></div><div class="scards"><div class="c"></div><div class="c"></div><div class="c"></div></div></div></div>
+      </div>
+      <div class="live"><span class="lp"></span>NO AR</div>
+    </div>
+    <div class="footline"><div class="dots"><i></i><i></i><i></i><i></i><i class="on"></i><i></i></div><span class="swipe">arraste&nbsp;&nbsp;→</span></div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 6 — CTA COMENTE "CLONE" ===== -->
+<section class="post" id="c6">
+  <div class="glow"></div><div class="fgrid"></div>
+  <div class="inner">
+    <div class="top">
+      <div class="brand"><img src="logo.webp" alt=""><span class="bn">Web Clone AI</span></div>
+      <div class="handle">@webcloneai</div>
+    </div>
+    <div style="margin-top:34px">
+      <div class="tag"><span class="dot"></span>QUER&nbsp;ESSE&nbsp;PODER?</div>
+      <h1>Comenta <span class="word">clone</span><br>que eu te mando<br>no <span class="grad">direct.</span></h1>
+      <p class="sub">Escreve <strong style="color:#fff">clone</strong> nos comentários e você recebe o acesso na hora, direto na sua DM.</p>
+    </div>
+    <div class="visual">
+      <div class="igcard">
+        <div class="ig-h"><img src="logo.webp" alt=""><span class="ign">webcloneai</span></div>
+        <div class="ig-b">
+          <div class="ig-cm">
+            <span class="av"></span>
+            <span class="tx">clone</span>
+            <span class="car"></span>
+            <span class="pub">Publicar</span>
+          </div>
+          <div class="ig-note">✦ Resposta automática no seu direct</div>
+        </div>
+      </div>
+    </div>
+    <div class="footline"><div class="dots"><i></i><i></i><i></i><i></i><i></i><i class="on"></i></div><span class="swipe">@webcloneai</span></div>
+  </div>
+</section>
+
+</body>
+</html>
