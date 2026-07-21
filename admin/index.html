@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin — Web Clone AI</title>
+<style>
+:root{--bg:#08090b;--panel:#0d0f14;--line:rgba(255,255,255,.09);--t1:#fff;--t2:rgba(255,255,255,.62);--t3:rgba(255,255,255,.4);--s2:#d6dce4;--s3:#c0c5ce;--ok:#5bd08a;--bad:#e8746a;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t1);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.hidden{display:none!important}
+/* login */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:34px 30px;width:100%;max-width:380px}
+.card h1{font-size:20px;margin:0 0 4px}
+.card p{color:var(--t2);font-size:13.5px;margin:0 0 22px}
+label{display:block;font-size:12px;color:var(--t2);margin:14px 0 6px}
+input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:#fff;font-size:14px}
+input:focus{outline:none;border-color:rgba(214,220,228,.4)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;border:1px solid transparent;border-radius:100px;font-weight:600;font-size:14px;padding:12px 20px;transition:.2s}
+.btn-1{background:linear-gradient(100deg,#8a94a6,#d6dce4 55%,#eef1f5);color:#0a0b0e;width:100%;margin-top:22px}
+.btn-1:hover{filter:brightness(1.05)}
+.btn-s{background:rgba(255,255,255,.05);border-color:var(--line);color:#fff;padding:7px 13px;font-size:12.5px;font-weight:500}
+.btn-s:hover{background:rgba(255,255,255,.1)}
+.msg{margin-top:14px;font-size:13px;min-height:18px}
+.msg.err{color:var(--bad)} .msg.ok{color:var(--ok)}
+/* app */
+header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(8,9,11,.85);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);z-index:10}
+header .brand{font-weight:700;font-size:15px;letter-spacing:-.3px}
+header .brand small{color:var(--t3);font-weight:500;margin-left:8px}
+.wrap{max-width:1080px;margin:0 auto;padding:24px}
+.tabs{display:flex;gap:8px;margin-bottom:22px}
+.tab{padding:9px 16px;border-radius:100px;border:1px solid var(--line);background:transparent;color:var(--t2);cursor:pointer;font-size:13.5px}
+.tab.active{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(214,220,228,.3)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px}
+@media(max-width:700px){.stats{grid-template-columns:1fr}}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+.stat .k{color:var(--t3);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+.stat .v{font-size:28px;font-weight:700;margin-top:6px}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+th,td{text-align:left;padding:13px 15px;font-size:13.5px;border-bottom:1px solid var(--line)}
+th{color:var(--t3);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px}
+tr:last-child td{border-bottom:0}
+td .row-actions{display:flex;gap:7px;flex-wrap:wrap}
+.pill{display:inline-block;padding:3px 10px;border-radius:100px;font-size:11.5px;border:1px solid var(--line)}
+.pill.active{color:var(--ok);border-color:rgba(91,208,138,.35)}
+.pill.inactive{color:var(--bad);border-color:rgba(232,116,106,.35)}
+.empty{color:var(--t3);text-align:center;padding:40px;font-size:14px}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#15171d;border:1px solid var(--line);padding:12px 20px;border-radius:12px;font-size:13.5px;opacity:0;transition:.3s;pointer-events:none}
+.toast.show{opacity:1}
+.mut{color:var(--t3);font-size:12px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="card">
+    <h1>Painel Admin</h1>
+    <p>Web Clone AI — acesso restrito</p>
+    <form id="loginForm">
+      <label>E-mail</label>
+      <input id="email" type="email" autocomplete="username" placeholder="admin@webcloneai.com.br" required>
+      <label>Senha</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+      <button class="btn btn-1" type="submit" id="loginBtn">Entrar</button>
+      <div class="msg" id="loginMsg"></div>
+    </form>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <header>
+    <div class="brand">Web Clone AI <small>Admin</small></div>
+    <button class="btn btn-s" id="logoutBtn">Sair</button>
+  </header>
+  <div class="wrap">
+    <div class="tabs">
+      <button class="tab active" data-tab="subs">Assinantes</button>
+      <button class="tab" data-tab="billing">Faturamento</button>
+    </div>
+
+    <!-- Assinantes -->
+    <section id="tab-subs">
+      <div class="stats">
+        <div class="stat"><div class="k">Assinantes</div><div class="v" id="stTotal">—</div></div>
+        <div class="stat"><div class="k">Ativos</div><div class="v" id="stActive">—</div></div>
+        <div class="stat"><div class="k">Inativos</div><div class="v" id="stInactive">—</div></div>
+      </div>
+      <table>
+        <thead><tr><th>E-mail</th><th>Plano</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="subsBody"><tr><td colspan="4" class="empty">Carregando…</td></tr></tbody>
+      </table>
+    </section>
+
+    <!-- Faturamento -->
+    <section id="tab-billing" class="hidden">
+      <div class="stats">
+        <div class="stat"><div class="k">Total recebido</div><div class="v" id="stTotalRec">—</div></div>
+        <div class="stat"><div class="k">Pagamentos</div><div class="v" id="stPayCount">—</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Valor</th><th>Tipo</th><th>Status</th><th>Data</th></tr></thead>
+        <tbody id="billBody"><tr><td colspan="4" class="empty">Carregando…</td></tr></tbody>
+      </table>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? '' : 'https://api.webcloneai.com.br';
+let TOKEN = localStorage.getItem('wca_admin_token') || '';
+
+const $ = id => document.getElementById(id);
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2600); }
+function money(v){ return 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDate(d){ if(!d) return '—'; try{ return new Date(d).toLocaleDateString('pt-BR'); }catch{ return '—'; } }
+
+async function api(path, opts={}){
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+TOKEN, ...(opts.headers||{}) },
+  });
+  if (res.status === 401){ logout(); throw new Error('Sessão expirada. Faça login de novo.'); }
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error(data.error || 'Erro na requisição.');
+  return data;
+}
+
+// ---- Login ----
+$('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn=$('loginBtn'), msg=$('loginMsg');
+  btn.disabled=true; btn.textContent='Entrando…'; msg.className='msg'; msg.textContent='';
+  try{
+    const res = await fetch(API + '/api/admin/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email:$('email').value.trim(), password:$('password').value }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error || 'Falha no login.');
+    TOKEN = data.token; localStorage.setItem('wca_admin_token', TOKEN);
+    showApp();
+  }catch(err){ msg.className='msg err'; msg.textContent=err.message; }
+  finally{ btn.disabled=false; btn.textContent='Entrar'; }
+});
+
+function logout(){ TOKEN=''; localStorage.removeItem('wca_admin_token'); $('app').classList.add('hidden'); $('login').classList.remove('hidden'); }
+$('logoutBtn').addEventListener('click', logout);
+
+// ---- Tabs ----
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  const tab=t.dataset.tab;
+  $('tab-subs').classList.toggle('hidden', tab!=='subs');
+  $('tab-billing').classList.toggle('hidden', tab!=='billing');
+  if(tab==='billing') loadBilling();
+}));
+
+// ---- Assinantes ----
+async function loadSubs(){
+  const body=$('subsBody');
+  try{
+    const { subscribers } = await api('/api/admin/subscribers');
+    $('stTotal').textContent = subscribers.length;
+    $('stActive').textContent = subscribers.filter(s=>s.status==='active').length;
+    $('stInactive').textContent = subscribers.filter(s=>s.status!=='active').length;
+    if(!subscribers.length){ body.innerHTML='<tr><td colspan="4" class="empty">Nenhum assinante ainda.</td></tr>'; return; }
+    body.innerHTML = subscribers.map(s => {
+      const active = s.status==='active';
+      return `<tr>
+        <td>${s.email || '<span class="mut">sem e-mail</span>'}<div class="mut">${fmtDate(s.created_at)}</div></td>
+        <td>${s.plan==='lifetime'?'Vitalício':(s.plan||'—')}</td>
+        <td><span class="pill ${active?'active':'inactive'}">${active?'ativo':'inativo'}</span></td>
+        <td><div class="row-actions">
+          <button class="btn btn-s" data-act="toggle" data-id="${s.id}" data-status="${active?'inactive':'active'}">${active?'Desativar':'Ativar'}</button>
+          <button class="btn btn-s" data-act="resend" data-id="${s.id}">Reenviar e-mail</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+  }catch(err){ body.innerHTML=`<tr><td colspan="4" class="empty">${err.message}</td></tr>`; }
+}
+
+$('subsBody').addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-act]'); if(!btn) return;
+  btn.disabled=true; const old=btn.textContent; btn.textContent='…';
+  try{
+    if(btn.dataset.act==='toggle'){
+      await api(`/api/admin/subscribers/${btn.dataset.id}/status`, { method:'POST', body:JSON.stringify({status:btn.dataset.status}) });
+      toast('Status atualizado.'); loadSubs();
+    } else if(btn.dataset.act==='resend'){
+      const r = await api(`/api/admin/subscribers/${btn.dataset.id}/resend`, { method:'POST' });
+      toast('E-mail reenviado para '+(r.email||'o cliente')+'.'); btn.disabled=false; btn.textContent=old;
+    }
+  }catch(err){ toast(err.message); btn.disabled=false; btn.textContent=old; }
+});
+
+// ---- Faturamento ----
+async function loadBilling(){
+  const body=$('billBody');
+  try{
+    const d = await api('/api/admin/billing');
+    $('stTotalRec').textContent = money(d.totalRecebido);
+    $('stPayCount').textContent = d.pagamentos;
+    if(!d.recentes.length){ body.innerHTML='<tr><td colspan="4" class="empty">Nenhum pagamento ainda.</td></tr>'; return; }
+    body.innerHTML = d.recentes.map(p => `<tr>
+      <td>${money(p.value)}</td><td>${p.billingType||'—'}</td>
+      <td><span class="pill active">${p.status}</span></td><td>${fmtDate(p.date)}</td></tr>`).join('');
+  }catch(err){ body.innerHTML=`<tr><td colspan="4" class="empty">${err.message}</td></tr>`; }
+}
+
+function showApp(){ $('login').classList.add('hidden'); $('app').classList.remove('hidden'); loadSubs(); }
+
+// auto-entra se já tiver token
+if (TOKEN) showApp();
+</script>
+</body>
+</html>

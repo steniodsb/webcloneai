@@ -21,8 +21,13 @@ const {
   WEBHOOK_SECRET,         // string secreta para validar webhooks Asaas
   RESEND_API_KEY,         // chave do Resend — entrega confiável de e-mail
   RESEND_FROM = 'Web Clone AI <acesso@webcloneai.com.br>',
+  ADMIN_EMAIL = 'admin@webcloneai.com.br',  // e-mail de login do painel admin
+  ADMIN_PASSWORD,         // senha do painel admin (defina na env — sem ela o admin fica bloqueado)
+  ADMIN_SECRET,           // segredo p/ assinar o token de sessão do admin
   PORT = 3000,
 } = process.env;
+
+const ADMIN_TOKEN_SECRET = ADMIN_SECRET || WEBHOOK_SECRET || 'troque-este-segredo';
 
 const ASAAS_BASE = ASAAS_SANDBOX === 'true'
   ? 'https://sandbox.asaas.com/api/v3'
@@ -402,6 +407,85 @@ app.get('/api/payment/status', async (req, res) => {
 
 app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
+// ── Painel admin ──────────────────────────────────────────────────────────────
+
+function signAdminToken() {
+  const payload = Buffer.from(JSON.stringify({ e: ADMIN_EMAIL, exp: Date.now() + 8 * 3600 * 1000 })).toString('base64url');
+  const sig = crypto.createHmac('sha256', ADMIN_TOKEN_SECRET).update(payload).digest('base64url');
+  return `${payload}.${sig}`;
+}
+function verifyAdminToken(tok) {
+  const [payload, sig] = String(tok || '').split('.');
+  if (!payload || !sig) return false;
+  const expect = crypto.createHmac('sha256', ADMIN_TOKEN_SECRET).update(payload).digest('base64url');
+  if (sig.length !== expect.length) return false;
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return false;
+  try { return JSON.parse(Buffer.from(payload, 'base64url').toString()).exp > Date.now(); }
+  catch { return false; }
+}
+function requireAdmin(req, res, next) {
+  const tok = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (!verifyAdminToken(tok)) return res.status(401).json({ error: 'Não autorizado.' });
+  next();
+}
+
+app.post('/api/admin/login', (req, res) => {
+  const { email, password } = req.body || {};
+  if (!ADMIN_PASSWORD) return res.status(503).json({ error: 'Admin não configurado (defina ADMIN_PASSWORD).' });
+  const ok = String(email || '').trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() && password === ADMIN_PASSWORD;
+  if (!ok) return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
+  res.json({ token: signAdminToken() });
+});
+
+app.get('/api/admin/subscribers', requireAdmin, async (_req, res) => {
+  try {
+    const subs = await supaAdmin('GET', '/rest/v1/subscriptions?select=*');
+    const emails = {};
+    try {
+      const u = await supaAdmin('GET', '/auth/v1/admin/users?per_page=1000');
+      (u.users || u || []).forEach(x => { emails[x.id] = x.email; });
+    } catch (e) { console.error('[admin] falha ao listar users:', e.message); }
+    const rows = (subs || []).map(s => ({
+      id: s.id, email: emails[s.user_id] || null, plan: s.plan, status: s.status,
+      created_at: s.created_at || null, asaas_customer_id: s.asaas_customer_id,
+    }));
+    res.json({ subscribers: rows, total: rows.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/admin/subscribers/:id/status', requireAdmin, async (req, res) => {
+  try {
+    const status = req.body?.status === 'active' ? 'active' : 'inactive';
+    await supaAdmin('PATCH', `/rest/v1/subscriptions?id=eq.${encodeURIComponent(req.params.id)}`, [{ status }]);
+    res.json({ ok: true, status });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/admin/subscribers/:id/resend', requireAdmin, async (req, res) => {
+  try {
+    const rows = await supaAdmin('GET', `/rest/v1/subscriptions?id=eq.${encodeURIComponent(req.params.id)}&select=user_id&limit=1`);
+    if (!rows?.length) return res.status(404).json({ error: 'Assinante não encontrado.' });
+    const u = await supaAdmin('GET', `/auth/v1/admin/users/${rows[0].user_id}`);
+    if (!u?.email) return res.status(404).json({ error: 'E-mail não encontrado.' });
+    await sendAccessEmail(u.email);
+    res.json({ ok: true, email: u.email });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/admin/billing', requireAdmin, async (_req, res) => {
+  try {
+    const received  = await asaas('GET', '/payments?limit=100&status=RECEIVED');
+    const confirmed = await asaas('GET', '/payments?limit=100&status=CONFIRMED');
+    const all = [...(received.data || []), ...(confirmed.data || [])];
+    const total = all.reduce((s, p) => s + (p.value || 0), 0);
+    const recentes = all.slice(0, 20).map(p => ({
+      value: p.value, status: p.status, date: p.paymentDate || p.dateCreated,
+      billingType: p.billingType, customer: p.customer,
+    }));
+    res.json({ totalRecebido: total, pagamentos: all.length, recentes });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Arquivos estáticos (LP, checkout, área de membros) ────────────────────────
 
 const SITE_ROOT = path.join(__dirname, '..');
@@ -411,8 +495,10 @@ app.use('/fonts',    express.static(path.join(SITE_ROOT, 'fonts')));
 app.use('/checkout', express.static(path.join(SITE_ROOT, 'checkout')));
 app.use('/landing',  express.static(path.join(SITE_ROOT, 'landing')));
 app.use('/members',  express.static(path.join(SITE_ROOT, 'members')));
+app.use('/admin',    express.static(path.join(SITE_ROOT, 'admin')));
 
 app.get('/',                (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/index.html')));
+app.get('/admin',           (_req, res) => res.sendFile(path.join(SITE_ROOT, 'admin/index.html')));
 app.get('/lp',              (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/index.html')));
 app.get('/membros',         (_req, res) => res.sendFile(path.join(SITE_ROOT, 'members/index.html')));
 app.get('/recuperar-senha', (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/recuperar-senha.html')));
