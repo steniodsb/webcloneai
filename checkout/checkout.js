@@ -9,14 +9,14 @@ let currentPayment = 'pix';
 
 const PLANS = {
   monthly:  { name: 'Acesso Mensal',   price: 29.90, label: 'R$29,90', period: 'por mês' },
-  lifetime: { name: 'Acesso Vitalício', price: 67.00, label: 'R$67,00', period: 'pagamento único' },
+  lifetime: { name: 'Acesso Vitalício', price: 29.90, label: 'R$29,90', period: 'pagamento único' },
 };
 
 // ─── Seleção de plano ─────────────────────────────────────────────────────────
 
 window.selectPlan = function(plan) {
   currentPlan = plan;
-  document.getElementById('planMonthly').classList.toggle('selected', plan === 'monthly');
+  document.getElementById('planMonthly')?.classList.toggle('selected', plan === 'monthly');
   document.getElementById('planLifetime').classList.toggle('selected', plan === 'lifetime');
 
   const p = PLANS[plan];
@@ -26,11 +26,7 @@ window.selectPlan = function(plan) {
 
   // Ajustar parcelamento para cartão (mensal sem parcelamento)
   const sel = document.getElementById('installments');
-  sel.innerHTML = plan === 'monthly'
-    ? `<option value="1">1x de ${p.label}</option>`
-    : `<option value="1">1x de R$67,00 sem juros</option>
-       <option value="2">2x de R$33,50 sem juros</option>
-       <option value="3">3x de R$22,34 sem juros</option>`;
+  sel.innerHTML = `<option value="1">1x de R$29,90 sem juros</option>`;
 };
 
 // ─── Seleção de pagamento ─────────────────────────────────────────────────────
@@ -238,5 +234,6 @@ window.copyPix = function(el) {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 const urlPlan = new URLSearchParams(window.location.search).get('plan');
-selectPlan(urlPlan === 'monthly' ? 'monthly' : 'lifetime');
+selectPlan('lifetime'); // só vitalício R$29,90
+void urlPlan;
 selectPayment('pix');

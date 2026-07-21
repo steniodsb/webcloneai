@@ -71,7 +71,7 @@ async function asaasCreateCustomer(data) {
 async function asaasCreatePayment(customerId, data) {
   const plan     = data.plan;
   const isCard   = data.paymentMethod === 'card';
-  const amount   = plan === 'monthly' ? 29.90 : 67.00;
+  const amount   = 29.90; // só vitalício
   const dueDate  = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   if (plan === 'monthly' && !isCard) {
@@ -269,7 +269,7 @@ app.post('/api/webhook/asaas', express.json(), async (req, res) => {
           await activateSubscription(payment.customer);
         } else {
           // Primeiro pagamento — determinar plano pelo valor
-          const plan = payment.value <= 29.90 ? 'monthly' : 'lifetime';
+          const plan = 'lifetime'; // só vitalício
           await createSupabaseUser(email, plan, payment.customer, payment.id);
         }
         break;
