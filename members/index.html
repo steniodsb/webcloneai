@@ -1,725 +1,386 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Área de Membros — Web Clone AI</title>
-  <link rel="icon" href="../icons/logo.webp" type="image/webp">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Área de Membros — Web Clone AI</title>
+<link rel="icon" href="../icons/logo.webp" type="image/webp">
+<style>
+@font-face{font-family:'Urbanist';src:url('/landing/fonts/urbanist-latin.woff2') format('woff2');font-weight:100 1000;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Urbanist';src:url('/landing/fonts/urbanist-latin-ext.woff2') format('woff2');font-weight:100 1000;font-display:swap;unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+:root{
+  --bg:#08090b;--panel:#0d0f14;--panel2:#111318;--line:rgba(255,255,255,.08);
+  --t1:#fff;--t2:rgba(255,255,255,.62);--t3:rgba(255,255,255,.4);
+  --s1:#eef1f5;--s2:#d6dce4;--s3:#c0c5ce;--s4:#8a94a6;
+  --ok:#5bd08a;--bad:#e8746a;--side:248px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t1);font-family:'Urbanist',-apple-system,Segoe UI,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.hidden{display:none!important}
+button{font-family:inherit;cursor:pointer}
+input{font-family:inherit}
+/* ── botões ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:100px;font-weight:600;font-size:14px;padding:12px 20px;transition:.2s}
+.btn-1{background:linear-gradient(100deg,var(--s4),var(--s2) 55%,var(--s1));color:#0a0b0e}
+.btn-1:hover{filter:brightness(1.05);transform:translateY(-1px)}
+.btn-1:disabled{opacity:.6;transform:none;cursor:default}
+.btn-2{background:rgba(255,255,255,.05);border-color:var(--line);color:#fff}
+.btn-2:hover{background:rgba(255,255,255,.1)}
+.msg{font-size:13px;margin-top:12px;min-height:16px}
+.msg.err{color:var(--bad)} .msg.ok{color:var(--ok)}
 
-    :root {
-      --sg:   linear-gradient(135deg, #B8B8B8 0%, #FFFFFF 50%, #9A9A9A 100%);
-      --t1:   rgba(248,248,248,0.96);
-      --t2:   rgba(210,210,210,0.55);
-      --t3:   rgba(175,175,175,0.32);
-      --glass:rgba(255,255,255,0.042);
-      --ghi:  rgba(255,255,255,0.068);
-      --gbrd: rgba(255,255,255,0.082);
-      --gtop: rgba(255,255,255,0.18);
-    }
+/* ── LOGIN ── */
+#loginWall{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+#loginWall .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:38px 32px;width:100%;max-width:400px}
+#loginWall .logo{height:34px;margin-bottom:18px}
+#loginWall h2{font-size:22px;font-weight:600;margin:0 0 6px}
+#loginWall p{color:var(--t2);font-size:14px;margin:0 0 24px}
+label{display:block;font-size:12px;color:var(--t2);margin:14px 0 6px}
+.inp{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:#fff;font-size:14px}
+.inp:focus{outline:none;border-color:rgba(214,220,228,.4)}
+.inp:disabled{opacity:.6}
 
-    body {
-      font-family: 'DM Sans', -apple-system, sans-serif;
-      background: #070707;
-      background-image:
-        radial-gradient(ellipse 80% 35% at 50% -4%, rgba(215,215,215,.065) 0%, transparent 58%),
-        radial-gradient(ellipse 55% 30% at 4% 60%, rgba(195,195,195,.025) 0%, transparent 55%);
-      color: var(--t1);
-      min-height: 100vh;
-      -webkit-font-smoothing: antialiased;
-    }
+/* ── SHELL ── */
+#app{display:flex;min-height:100vh}
+aside{width:var(--side);flex:none;background:var(--panel);border-right:1px solid var(--line);position:fixed;top:0;bottom:0;left:0;display:flex;flex-direction:column;padding:22px 16px;z-index:40;transition:transform .28s}
+aside .brand{display:flex;align-items:center;gap:10px;padding:4px 8px 20px}
+aside .brand img{height:28px}
+aside .brand b{font-size:15px;font-weight:700;letter-spacing:-.3px}
+aside nav{display:flex;flex-direction:column;gap:4px;flex:1}
+.navitem{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:11px;color:var(--t2);font-size:14.5px;font-weight:500;background:none;border:0;width:100%;text-align:left}
+.navitem svg{width:19px;height:19px;flex:none}
+.navitem:hover{background:rgba(255,255,255,.05);color:#fff}
+.navitem.active{background:rgba(255,255,255,.08);color:#fff}
+.sidefoot{border-top:1px solid var(--line);padding-top:14px;margin-top:10px}
+.sideuser{display:flex;align-items:center;gap:10px;padding:6px 8px 12px}
+.avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(145deg,var(--s2),var(--s4));color:#0a0b0e;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none}
+.sideuser .who{overflow:hidden}
+.sideuser .who b{display:block;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sideuser .who span{font-size:11.5px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 
-    /* ── NAV ── */
-    nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 18px 40px;
-      border-bottom: 1px solid rgba(255,255,255,.045);
-      background: rgba(7,7,7,0.92);
-      backdrop-filter: blur(18px);
-      position: sticky;
-      top: 0;
-      z-index: 50;
-    }
+main{flex:1;margin-left:var(--side);padding:0 0 60px}
+.topbar{display:flex;align-items:center;gap:14px;padding:16px 30px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(8,9,11,.82);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);z-index:30}
+.topbar h1{font-size:18px;font-weight:600;margin:0}
+#menuToggle{display:none;background:none;border:1px solid var(--line);border-radius:9px;padding:7px 9px;color:#fff}
+.content{max-width:960px;padding:30px}
 
-    @media (max-width: 600px) { nav { padding: 14px 20px; } }
+/* ── Início ── */
+.hello{font-size:26px;font-weight:600;letter-spacing:-.5px;margin:0 0 4px}
+.hello span{background:linear-gradient(100deg,#8a94a6,#fff 50%,#c0c5ce);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.helloSub{color:var(--t2);font-size:14.5px;margin:0 0 26px}
+.dlcard{display:flex;align-items:center;gap:18px;background:linear-gradient(120deg,rgba(214,220,228,.09),rgba(255,255,255,.02));border:1px solid rgba(214,220,228,.18);border-radius:16px;padding:22px 24px;margin-bottom:34px;flex-wrap:wrap}
+.dlcard .ic{width:52px;height:52px;border-radius:14px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;flex:none}
+.dlcard .ic svg{width:26px;height:26px;color:var(--s2)}
+.dlcard .tx{flex:1;min-width:180px}
+.dlcard .tx b{display:block;font-size:16px;margin-bottom:3px}
+.dlcard .tx p{margin:0;color:var(--t2);font-size:13.5px}
+.sechead{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--t3);margin:0 0 16px;font-weight:600}
+.lessons{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px}
+.lesson{background:var(--panel2);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:transform .25s,border-color .25s}
+.lesson:hover{transform:translateY(-4px);border-color:rgba(214,220,228,.28)}
+.lesson .thumb{aspect-ratio:16/9;background:radial-gradient(80% 80% at 50% 0%,rgba(150,163,185,.18),#0b0d11);display:flex;align-items:center;justify-content:center;position:relative}
+.lesson .thumb .play{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center}
+.lesson .thumb .dur{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.6);font-size:11px;padding:2px 7px;border-radius:6px;color:var(--s2)}
+.lesson .bd{padding:16px 17px}
+.lesson .num{font-size:11px;color:var(--s4);font-weight:600;letter-spacing:.5px}
+.lesson .ti{font-size:15px;font-weight:600;margin:5px 0 6px;line-height:1.3}
+.lesson .de{font-size:12.5px;color:var(--t2);line-height:1.5;margin:0 0 12px}
+.badge{display:inline-block;font-size:10.5px;padding:3px 9px;border-radius:100px;border:1px solid var(--line)}
+.badge.on{color:var(--ok);border-color:rgba(91,208,138,.3)}
+.badge.soon{color:var(--t3)}
+.lesson.locked{opacity:.62}
 
-    .nav-logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      text-decoration: none;
-    }
+/* ── Perfil ── */
+.formcard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:28px 26px;max-width:520px;margin-bottom:20px}
+.formcard h3{margin:0 0 4px;font-size:17px;font-weight:600}
+.formcard .hint{color:var(--t3);font-size:13px;margin:0 0 16px}
+.formcard .btn{margin-top:18px}
 
-    .nav-logo img { border-radius: 9px; }
+/* ── Suporte ── */
+.supportgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;max-width:720px}
+.supcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
+.supcard .ic{width:42px;height:42px;border-radius:11px;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.supcard .ic svg{width:21px;height:21px;color:var(--s2)}
+.supcard b{display:block;font-size:15px;margin-bottom:5px}
+.supcard p{margin:0 0 12px;color:var(--t2);font-size:13px;line-height:1.5}
 
-    .nav-brand {
-      font-size: 15px;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: -0.4px;
-    }
-
-    .nav-right { display: flex; align-items: center; gap: 14px; }
-
-    .nav-user {
-      font-size: 12px;
-      color: var(--t3);
-    }
-
-    #logoutBtn {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--t2);
-      background: var(--glass);
-      border: 1px solid var(--gbrd);
-      padding: 6px 14px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-family: 'DM Sans', sans-serif;
-      transition: color 0.14s, background 0.14s;
-    }
-
-    #logoutBtn:hover { background: var(--ghi); color: rgba(240,240,240,0.86); }
-
-    /* ── PAGE ── */
-    .page {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 48px 24px 80px;
-    }
-
-    @media (max-width: 600px) { .page { padding: 28px 16px 60px; } }
-
-    /* ── Welcome ── */
-    .welcome {
-      margin-bottom: 40px;
-    }
-
-    .welcome-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 1.4px;
-      color: var(--t3);
-      border: 1px solid var(--gbrd);
-      background: var(--glass);
-      padding: 5px 12px;
-      border-radius: 99px;
-      margin-bottom: 16px;
-    }
-
-    .welcome h1 {
-      font-size: 32px;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: -1px;
-      line-height: 1.15;
-      margin-bottom: 10px;
-    }
-
-    @media (max-width: 600px) { .welcome h1 { font-size: 24px; } }
-
-    .welcome-sub {
-      font-size: 15px;
-      color: var(--t2);
-      line-height: 1.55;
-    }
-
-    /* ── Modules grid ── */
-    .section-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 1.4px;
-      color: var(--t3);
-      margin-bottom: 16px;
-    }
-
-    .modules-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 14px;
-      margin-bottom: 40px;
-    }
-
-    .module-card {
-      background: var(--glass);
-      border: 1px solid var(--gbrd);
-      border-radius: 16px;
-      overflow: hidden;
-      transition: border-color 0.18s, background 0.18s;
-      cursor: pointer;
-      text-decoration: none;
-    }
-
-    .module-card:hover {
-      border-color: rgba(255,255,255,0.16);
-      background: var(--ghi);
-    }
-
-    .module-thumb {
-      position: relative;
-      aspect-ratio: 16/9;
-      background: rgba(255,255,255,0.02);
-      border-bottom: 1px solid var(--gbrd);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-    }
-
-    .module-thumb::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse at 50% 0%, rgba(215,215,215,.06) 0%, transparent 65%);
-    }
-
-    .play-circle {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.10);
-      border: 1px solid rgba(255,255,255,0.18);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      z-index: 1;
-      transition: background 0.16s, transform 0.16s;
-    }
-
-    .module-card:hover .play-circle {
-      background: rgba(255,255,255,0.16);
-      transform: scale(1.08);
-    }
-
-    .play-circle svg { margin-left: 3px; color: rgba(240,240,240,0.86); }
-
-    .module-duration {
-      position: absolute;
-      bottom: 9px;
-      right: 11px;
-      font-size: 10px;
-      font-weight: 600;
-      color: rgba(240,240,240,0.70);
-      background: rgba(0,0,0,0.55);
-      padding: 2px 7px;
-      border-radius: 6px;
-      z-index: 1;
-    }
-
-    .module-body { padding: 14px 16px 16px; }
-
-    .module-num {
-      font-size: 9.5px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      color: var(--t3);
-      margin-bottom: 6px;
-    }
-
-    .module-title {
-      font-size: 14px;
-      font-weight: 700;
-      color: rgba(240,240,240,0.90);
-      letter-spacing: -0.3px;
-      line-height: 1.30;
-      margin-bottom: 5px;
-    }
-
-    .module-desc {
-      font-size: 11.5px;
-      color: var(--t2);
-      line-height: 1.55;
-    }
-
-    .module-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 9.5px;
-      font-weight: 700;
-      letter-spacing: 0.8px;
-      margin-top: 10px;
-      padding: 3px 9px;
-      border-radius: 99px;
-    }
-
-    .status-available {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.10);
-      color: rgba(210,210,210,0.70);
-    }
-
-    .status-soon {
-      background: rgba(200,200,200,0.04);
-      border: 1px solid rgba(200,200,200,0.08);
-      color: var(--t3);
-    }
-
-    /* ── Extension download block ── */
-    .download-block {
-      background: var(--glass);
-      border: 1px solid var(--gbrd);
-      border-radius: 18px;
-      padding: 28px;
-      box-shadow: inset 0 1px 0 var(--gtop);
-      display: flex;
-      align-items: center;
-      gap: 24px;
-      margin-bottom: 40px;
-    }
-
-    @media (max-width: 600px) {
-      .download-block { flex-direction: column; align-items: flex-start; }
-    }
-
-    .download-block img { border-radius: 12px; flex-shrink: 0; }
-
-    .download-info h3 {
-      font-size: 16px;
-      font-weight: 700;
-      color: #fff;
-      margin-bottom: 6px;
-      letter-spacing: -0.3px;
-    }
-
-    .download-info p {
-      font-size: 13px;
-      color: var(--t2);
-      margin-bottom: 16px;
-      line-height: 1.55;
-    }
-
-    /* Beam button */
-    .bw {
-      position: relative;
-      display: inline-flex;
-      border-radius: 11px;
-      padding: 1.5px;
-      overflow: hidden;
-    }
-
-    .bspin {
-      position: absolute;
-      top: 50%; left: 50%;
-      width: 200%; height: 200%;
-      transform: translate(-50%,-50%) rotate(0deg);
-      background: conic-gradient(
-        from 0deg,
-        transparent 40%,
-        rgba(210,210,210,.50) 46%,
-        rgba(255,255,255,.92) 50%,
-        rgba(210,210,210,.50) 54%,
-        transparent 60%
-      );
-      animation: bspin 3s linear infinite;
-      pointer-events: none;
-      z-index: 0;
-    }
-    .bw:hover .bspin { animation-duration: .42s; }
-    @keyframes bspin { to { transform: translate(-50%,-50%) rotate(360deg); } }
-
-    .dl-btn {
-      position: relative;
-      z-index: 1;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 11px 20px;
-      border-radius: 9.5px;
-      background: #FFFFFF;
-      color: #080808;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.7px;
-      border: none;
-      cursor: pointer;
-      text-decoration: none;
-      transition: filter 0.18s;
-    }
-
-    .dl-btn:hover { filter: brightness(0.90); }
-
-    /* ── Login wall ── */
-    #loginWall {
-      display: none;
-      text-align: center;
-      padding: 60px 20px;
-    }
-
-    #loginWall.show { display: block; }
-
-    #loginWall h2 { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 10px; }
-    #loginWall p  { font-size: 14px; color: var(--t2); margin-bottom: 24px; }
-
-    .login-form {
-      max-width: 360px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .login-input {
-      width: 100%;
-      padding: 11px 14px;
-      background: var(--glass);
-      border: 1px solid var(--gbrd);
-      border-radius: 10px;
-      color: var(--t1);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 14px;
-      outline: none;
-    }
-
-    .login-input:focus { border-color: rgba(255,255,255,0.24); }
-    .login-input::placeholder { color: var(--t3); }
-
-    .login-msg {
-      font-size: 12px;
-      color: rgba(255,130,130,0.90);
-      display: none;
-    }
-
-    .login-msg.show { display: block; }
-
-    #content { display: none; }
-    #content.show { display: block; }
-  </style>
+.backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:35}
+@media(max-width:860px){
+  aside{transform:translateX(-100%)}
+  aside.open{transform:none}
+  main{margin-left:0}
+  #menuToggle{display:inline-flex}
+  .backdrop.show{display:block}
+}
+</style>
 </head>
 <body>
 
-<nav>
-  <a href="../landing/" class="nav-logo">
-    <img src="../icons/logo.webp" width="28" height="28" alt="Web Clone AI">
-    <span class="nav-brand">Web Clone AI</span>
-  </a>
-  <div class="nav-right">
-    <span class="nav-user" id="navUser"></span>
-    <button id="logoutBtn" style="display:none">Sair</button>
-  </div>
-</nav>
-
-<div class="page">
-
-  <!-- Login Wall -->
-  <div id="loginWall">
-    <h2>Área exclusiva para membros</h2>
-    <p>Faça login para acessar os tutoriais da extensão.</p>
-    <div class="login-form">
-      <input type="email" id="wallEmail" class="login-input" placeholder="seu@email.com">
-      <input type="password" id="wallPassword" class="login-input" placeholder="Senha">
-      <div class="bw" style="border-radius:11px">
-        <div class="bspin"></div>
-        <button id="wallLoginBtn" style="width:100%" class="dl-btn">
-          ENTRAR NA ÁREA DE MEMBROS
-        </button>
-      </div>
-      <div id="wallMsg" class="login-msg"></div>
-      <p style="font-size:12px;color:var(--t3);margin-top:4px">
-        Ainda não tem acesso?
-        <a href="../checkout/" style="color:var(--t2);text-decoration:none">Comprar agora →</a>
-      </p>
-    </div>
-  </div>
-
-  <!-- Protected content -->
-  <div id="content">
-
-    <!-- Welcome -->
-    <div class="welcome">
-      <div class="welcome-tag">
-        ▶ ÁREA DE MEMBROS
-      </div>
-      <h1>Bem-vindo, <span id="userName"></span>!</h1>
-      <p class="welcome-sub">
-        Aqui você encontra todos os tutoriais para instalar e usar o <strong style="color:rgba(240,240,240,0.88)">Web Clone AI</strong>.<br>
-        Em breve novos conteúdos serão adicionados.
-      </p>
-    </div>
-
-    <!-- Extension download -->
-    <div class="download-block">
-      <img src="../icons/logo.webp" width="58" height="58" alt="">
-      <div class="download-info">
-        <h3>Extensão Web Clone AI para Chrome</h3>
-        <p>Baixe o arquivo ZIP da extensão e siga os tutoriais abaixo para instalar no Chrome/Edge/Brave.</p>
-        <div class="bw">
-          <div class="bspin"></div>
-          <a href="#" class="dl-btn" id="downloadExtBtn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            BAIXAR EXTENSÃO
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <!-- Módulo de tutoriais -->
-    <p class="section-label">TUTORIAIS DE INSTALAÇÃO</p>
-
-    <div class="modules-grid">
-
-      <div class="module-card">
-        <div class="module-thumb">
-          <div class="play-circle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          </div>
-          <span class="module-duration">3:45</span>
-        </div>
-        <div class="module-body">
-          <div class="module-num">AULA 01</div>
-          <div class="module-title">Como instalar a extensão no Chrome</div>
-          <div class="module-desc">Passo a passo para carregar a extensão no modo desenvolvedor e fixar na barra do Chrome.</div>
-          <span class="module-status status-available">● DISPONÍVEL</span>
-        </div>
-      </div>
-
-      <div class="module-card">
-        <div class="module-thumb">
-          <div class="play-circle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          </div>
-          <span class="module-duration">4:20</span>
-        </div>
-        <div class="module-body">
-          <div class="module-num">AULA 02</div>
-          <div class="module-title">Como instalar no Edge e no Brave</div>
-          <div class="module-desc">Instalação do Web Clone AI em outros navegadores baseados no Chromium.</div>
-          <span class="module-status status-available">● DISPONÍVEL</span>
-        </div>
-      </div>
-
-      <div class="module-card">
-        <div class="module-thumb">
-          <div class="play-circle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          </div>
-          <span class="module-duration">8:00</span>
-        </div>
-        <div class="module-body">
-          <div class="module-num">AULA 03</div>
-          <div class="module-title">Clonando seu primeiro site</div>
-          <div class="module-desc">Demonstração completa clonando uma landing page real e abrindo no Claude Code.</div>
-          <span class="module-status status-available">● DISPONÍVEL</span>
-        </div>
-      </div>
-
-      <div class="module-card">
-        <div class="module-thumb">
-          <div class="play-circle" style="opacity:0.45">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          </div>
-        </div>
-        <div class="module-body">
-          <div class="module-num">AULA 04</div>
-          <div class="module-title">Personalizando o site clonado com IA</div>
-          <div class="module-desc">Como usar o PROMPT.md gerado para adaptar qualquer site para o seu projeto.</div>
-          <span class="module-status status-soon">○ EM BREVE</span>
-        </div>
-      </div>
-
-      <div class="module-card">
-        <div class="module-thumb">
-          <div class="play-circle" style="opacity:0.45">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          </div>
-        </div>
-        <div class="module-body">
-          <div class="module-num">AULA 05</div>
-          <div class="module-title">Publicando o site no Vercel</div>
-          <div class="module-desc">Do ZIP exportado ao site online em menos de 5 minutos com a Vercel.</div>
-          <span class="module-status status-soon">○ EM BREVE</span>
-        </div>
-      </div>
-
-    </div>
-
+<!-- ══ LOGIN ══ -->
+<div id="loginWall">
+  <div class="card">
+    <img class="logo" src="/landing/img/webcloner-logo-text.png" alt="Web Clone AI">
+    <h2>Área de Membros</h2>
+    <p>Faça login para acessar a extensão e os tutoriais.</p>
+    <label>E-mail</label>
+    <input id="wallEmail" class="inp" type="email" autocomplete="username" placeholder="seu@email.com">
+    <label>Senha</label>
+    <input id="wallPassword" class="inp" type="password" autocomplete="current-password" placeholder="••••••••">
+    <button id="wallLoginBtn" class="btn btn-1" style="width:100%;margin-top:22px">ENTRAR NA ÁREA DE MEMBROS</button>
+    <div class="msg err" id="wallMsg"></div>
+    <p style="margin-top:18px;font-size:12.5px;color:var(--t3)">Não recebeu o acesso? Escreva pra <a href="mailto:contato@webcloneai.com.br" style="color:var(--s2)">contato@webcloneai.com.br</a></p>
   </div>
 </div>
 
+<!-- ══ APP ══ -->
+<div id="app" class="hidden">
+  <div class="backdrop" id="backdrop"></div>
+  <aside id="sidebar">
+    <div class="brand"><img src="/landing/img/webcloner-logo-text.png" alt="Web Clone AI"></div>
+    <nav>
+      <button class="navitem active" data-view="inicio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Início</button>
+      <button class="navitem" data-view="perfil">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Meu perfil</button>
+      <button class="navitem" data-view="suporte">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Suporte</button>
+    </nav>
+    <div class="sidefoot">
+      <div class="sideuser">
+        <div class="avatar" id="sideAvatar">?</div>
+        <div class="who"><b id="sideName">—</b><span id="sideUserEmail"></span></div>
+      </div>
+      <button class="navitem" id="logoutBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg>Sair</button>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <button id="menuToggle" aria-label="menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <h1 id="viewTitle">Início</h1>
+    </div>
+
+    <div class="content">
+      <!-- INÍCIO -->
+      <section id="view-inicio">
+        <h2 class="hello">Bem-vindo, <span id="welcomeName">membro</span> 👋</h2>
+        <p class="helloSub">Baixe a extensão e siga os tutoriais pra começar a copiar sites.</p>
+        <div class="dlcard">
+          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+          <div class="tx"><b>Extensão Web Clone AI para Chrome</b><p>Baixe o .zip, carregue no modo desenvolvedor e fixe na barra. Tutorial na Aula 01.</p></div>
+          <a id="downloadExtBtn" class="btn btn-1" href="#" download>Baixar extensão</a>
+        </div>
+        <p class="sechead">Tutoriais</p>
+        <div class="lessons" id="lessonsGrid"></div>
+      </section>
+
+      <!-- PERFIL -->
+      <section id="view-perfil" class="hidden">
+        <div class="formcard">
+          <h3>Dados da conta</h3>
+          <p class="hint">Atualize seu nome. O e-mail é o seu login e não muda.</p>
+          <label>Nome</label>
+          <input id="profName" class="inp" type="text" placeholder="Seu nome">
+          <label>E-mail</label>
+          <input id="profEmail" class="inp" type="email" disabled>
+          <button id="saveNameBtn" class="btn btn-1">Salvar nome</button>
+          <div class="msg" id="profMsg"></div>
+        </div>
+        <div class="formcard">
+          <h3>Trocar senha</h3>
+          <p class="hint">Mínimo 6 caracteres.</p>
+          <label>Nova senha</label>
+          <input id="newPass" class="inp" type="password" autocomplete="new-password" placeholder="••••••••">
+          <label>Confirmar nova senha</label>
+          <input id="confirmPass" class="inp" type="password" autocomplete="new-password" placeholder="••••••••">
+          <button id="savePassBtn" class="btn btn-1">Trocar senha</button>
+          <div class="msg" id="passMsg"></div>
+        </div>
+      </section>
+
+      <!-- SUPORTE -->
+      <section id="view-suporte" class="hidden">
+        <div class="supportgrid">
+          <div class="supcard">
+            <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></div>
+            <b>E-mail</b><p>Dúvidas, acesso ou pagamento? Fala com a gente.</p>
+            <a class="btn btn-2" href="mailto:contato@webcloneai.com.br">contato@webcloneai.com.br</a>
+          </div>
+          <div class="supcard">
+            <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg></div>
+            <b>Comunidade</b><p>Grupo de network com outros membros. (link em breve)</p>
+            <span class="badge soon">Em breve</span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
 <script>
-// ── Configuração ──────────────────────────────────────────────────────────────
+// ══ Config ══
 const SUPABASE_URL      = 'https://cygvhqggcqsemtrfltfk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5Z3ZocWdnY3FzZW10cmZsdGZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTE3OTAsImV4cCI6MjA5ODA2Nzc5MH0.T_tbZPZdn32uQyyQKGIRa-L3-DQydsv8ewi6h2DzFJE';
 const EXT_DOWNLOAD_URL  = '/download/web-clone-ai.zip';
 
-// ── Supabase helper ───────────────────────────────────────────────────────────
+// Aulas (fixas por enquanto — prontas pra vir do banco depois)
+const LESSONS = [
+  { n:1, title:'Como instalar a extensão no Chrome', desc:'Passo a passo para carregar a extensão no modo desenvolvedor e fixar na barra do Chrome.', dur:'3:45', status:'available' },
+  { n:2, title:'Como instalar no Edge e no Brave', desc:'Instalação do Web Clone AI em outros navegadores baseados no Chromium.', dur:'4:20', status:'available' },
+  { n:3, title:'Clonando seu primeiro site', desc:'Demonstração completa clonando uma landing page real e abrindo no Claude Code.', dur:'8:00', status:'available' },
+  { n:4, title:'Personalizando o site clonado com IA', desc:'Como usar o PROMPT.md gerado para adaptar qualquer site para o seu projeto.', dur:'', status:'soon' },
+  { n:5, title:'Publicando o site no Vercel', desc:'Do ZIP exportado ao site online em menos de 5 minutos com a Vercel.', dur:'', status:'soon' },
+];
+
+const $ = id => document.getElementById(id);
+
+// ══ Supabase helper ══
 async function supaFetch(method, path, body, token) {
   const res = await fetch(`${SUPABASE_URL}${path}`, {
     method,
-    headers: {
-      'Content-Type':  'application/json',
-      'apikey':         SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${token || SUPABASE_ANON_KEY}`,
-    },
+    headers: { 'Content-Type':'application/json', 'apikey':SUPABASE_ANON_KEY, 'Authorization':`Bearer ${token || SUPABASE_ANON_KEY}` },
     body: body ? JSON.stringify(body) : undefined,
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error_description || json.message || `Erro ${res.status}`);
+  if (!res.ok) throw new Error(json.error_description || json.msg || json.message || `Erro ${res.status}`);
   return json;
 }
 
-// ── Session from localStorage ─────────────────────────────────────────────────
-function getLocalSession() {
-  try {
-    const s = localStorage.getItem('wca_member_session');
-    return s ? JSON.parse(s) : null;
-  } catch { return null; }
-}
+// ══ Sessão ══
+function getLocalSession(){ try{ const s=localStorage.getItem('wca_member_session'); return s?JSON.parse(s):null; }catch{ return null; } }
+function saveLocalSession(s){ localStorage.setItem('wca_member_session', JSON.stringify(s)); }
+function clearLocalSession(){ localStorage.removeItem('wca_member_session'); }
 
-function saveLocalSession(session) {
-  localStorage.setItem('wca_member_session', JSON.stringify(session));
-}
+let SESSION = null;
 
-function clearLocalSession() {
-  localStorage.removeItem('wca_member_session');
-}
-
-// ── Auth ─────────────────────────────────────────────────────────────────────
-
-async function checkAndShowContent() {
+// ══ Auth ══
+async function checkAndShowContent(){
   let session = getLocalSession();
+  if (!session || Date.now() > session.expiresAt) return showLoginWall();
 
-  if (!session || Date.now() > session.expiresAt) {
-    showLoginWall();
-    return;
-  }
-
-  // Renovar token se expira em menos de 10 minutos
-  if (Date.now() > session.expiresAt - 600_000) {
+  if (Date.now() > session.expiresAt - 600000) {
     try {
-      const refresh = await supaFetch('POST', '/auth/v1/token?grant_type=refresh_token', {
-        refresh_token: session.refreshToken
-      });
-      session = {
-        accessToken:  refresh.access_token,
-        refreshToken: refresh.refresh_token,
-        userId:       refresh.user?.id,
-        email:        refresh.user?.email,
-        expiresAt:    Date.now() + (refresh.expires_in ?? 3600) * 1000,
-      };
+      const r = await supaFetch('POST','/auth/v1/token?grant_type=refresh_token',{ refresh_token: session.refreshToken });
+      session = { accessToken:r.access_token, refreshToken:r.refresh_token, userId:r.user?.id, email:r.user?.email, name:r.user?.user_metadata?.name || session.name, expiresAt:Date.now()+(r.expires_in??3600)*1000 };
       saveLocalSession(session);
-    } catch {
-      showLoginWall();
-      return;
-    }
+    } catch { return showLoginWall(); }
   }
 
   try {
-    const sub = await supaFetch(
-      'GET',
-      `/rest/v1/subscriptions?user_id=eq.${session.userId}&select=status&limit=1`,
-      null,
-      session.accessToken
-    );
-    if (!sub?.length || sub[0].status !== 'active') {
-      showLoginWall();
-      return;
-    }
-  } catch {
-    showLoginWall();
-    return;
-  }
+    const sub = await supaFetch('GET', `/rest/v1/subscriptions?user_id=eq.${session.userId}&select=status&limit=1`, null, session.accessToken);
+    if (!sub?.length || sub[0].status !== 'active') return showLoginWall();
+  } catch { return showLoginWall(); }
 
   showContent(session);
 }
 
-function showLoginWall() {
-  document.getElementById('loginWall').classList.add('show');
-  document.getElementById('content').classList.remove('show');
+function showLoginWall(){ $('loginWall').classList.remove('hidden'); $('app').classList.add('hidden'); }
+
+function showContent(session){
+  SESSION = session;
+  $('loginWall').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  const nm = session.name || session.email?.split('@')[0] || 'membro';
+  const disp = nm.charAt(0).toUpperCase()+nm.slice(1);
+  $('welcomeName').textContent = disp.split(' ')[0];
+  $('sideName').textContent = disp;
+  $('sideUserEmail').textContent = session.email || '';
+  $('sideAvatar').textContent = (disp[0]||'?').toUpperCase();
+  $('downloadExtBtn').href = EXT_DOWNLOAD_URL;
+  renderLessons();
+  loadProfile();
 }
 
-function showContent(session) {
-  document.getElementById('loginWall').classList.remove('show');
-  document.getElementById('content').classList.add('show');
-  document.getElementById('logoutBtn').style.display = '';
-
-  const name = session.email?.split('@')[0] || 'membro';
-  document.getElementById('userName').textContent =
-    name.charAt(0).toUpperCase() + name.slice(1);
-  document.getElementById('navUser').textContent = session.email || '';
-  document.getElementById('downloadExtBtn').href = EXT_DOWNLOAD_URL;
+function renderLessons(){
+  $('lessonsGrid').innerHTML = LESSONS.map(l => {
+    const on = l.status === 'available';
+    return `<div class="lesson ${on?'':'locked'}">
+      <div class="thumb"><div class="play"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div>${l.dur?`<span class="dur">${l.dur}</span>`:''}</div>
+      <div class="bd"><div class="num">AULA ${String(l.n).padStart(2,'0')}</div>
+        <div class="ti">${l.title}</div><div class="de">${l.desc}</div>
+        <span class="badge ${on?'on':'soon'}">${on?'● Disponível':'Em breve'}</span></div>
+    </div>`;
+  }).join('');
 }
 
-// ── Login form ────────────────────────────────────────────────────────────────
-
-document.getElementById('wallLoginBtn').addEventListener('click', async () => {
-  const email    = document.getElementById('wallEmail').value.trim();
-  const password = document.getElementById('wallPassword').value;
-  const msg      = document.getElementById('wallMsg');
-  const btn      = document.getElementById('wallLoginBtn');
-
-  if (!email || !password) { showWallMsg('Preencha e-mail e senha.'); return; }
-
-  btn.textContent = 'ENTRANDO...';
-  btn.disabled    = true;
-  msg.classList.remove('show');
-
+// ══ Perfil ══
+async function loadProfile(){
   try {
-    const data = await supaFetch('POST', '/auth/v1/token?grant_type=password', { email, password });
-    const session = {
-      accessToken:  data.access_token,
-      refreshToken: data.refresh_token,
-      userId:       data.user?.id,
-      email:        data.user?.email,
-      expiresAt:    Date.now() + (data.expires_in ?? 3600) * 1000,
-    };
-
-    // Check subscription
-    const sub = await supaFetch(
-      'GET',
-      `/rest/v1/subscriptions?user_id=eq.${session.userId}&select=status&limit=1`,
-      null,
-      session.accessToken
-    );
-
-    if (!sub?.length || sub[0].status !== 'active') {
-      showWallMsg('Sua conta não possui assinatura ativa. Adquira o acesso para continuar.');
-      return;
-    }
-
-    saveLocalSession(session);
-    showContent(session);
-
-  } catch (err) {
-    const msg = err.message?.includes('Invalid login') || err.message?.includes('invalid_grant')
-      ? 'E-mail ou senha incorretos.'
-      : (err.message || 'Erro ao fazer login.');
-    showWallMsg(msg);
-  } finally {
-    btn.textContent = 'ENTRAR NA ÁREA DE MEMBROS';
-    btn.disabled    = false;
+    const u = await supaFetch('GET','/auth/v1/user',null,SESSION.accessToken);
+    $('profEmail').value = u.email || SESSION.email || '';
+    $('profName').value  = u.user_metadata?.name || SESSION.name || '';
+  } catch {
+    $('profEmail').value = SESSION.email || '';
+    $('profName').value  = SESSION.name || '';
   }
-});
-
-function showWallMsg(text) {
-  const el = document.getElementById('wallMsg');
-  el.textContent = text;
-  el.classList.add('show');
 }
 
-document.getElementById('logoutBtn').addEventListener('click', () => {
-  clearLocalSession();
-  showLoginWall();
-  document.getElementById('logoutBtn').style.display = 'none';
-  document.getElementById('navUser').textContent = '';
+$('saveNameBtn').addEventListener('click', async () => {
+  const name = $('profName').value.trim();
+  const btn = $('saveNameBtn'), msg = $('profMsg');
+  if (name.length < 2) { msg.className='msg err'; msg.textContent='Informe seu nome.'; return; }
+  btn.disabled=true; btn.textContent='Salvando…'; msg.className='msg';
+  try {
+    await supaFetch('PUT','/auth/v1/user',{ data:{ name } }, SESSION.accessToken);
+    SESSION.name = name; saveLocalSession(SESSION);
+    const disp = name.charAt(0).toUpperCase()+name.slice(1);
+    $('sideName').textContent=disp; $('welcomeName').textContent=disp.split(' ')[0]; $('sideAvatar').textContent=(disp[0]||'?').toUpperCase();
+    msg.className='msg ok'; msg.textContent='Nome atualizado ✓';
+  } catch(e){ msg.className='msg err'; msg.textContent=e.message; }
+  finally{ btn.disabled=false; btn.textContent='Salvar nome'; }
 });
 
-document.getElementById('wallPassword').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('wallLoginBtn').click();
+$('savePassBtn').addEventListener('click', async () => {
+  const p1=$('newPass').value, p2=$('confirmPass').value, btn=$('savePassBtn'), msg=$('passMsg');
+  if (p1.length < 6) { msg.className='msg err'; msg.textContent='A senha precisa de no mínimo 6 caracteres.'; return; }
+  if (p1 !== p2) { msg.className='msg err'; msg.textContent='As senhas não conferem.'; return; }
+  btn.disabled=true; btn.textContent='Salvando…'; msg.className='msg';
+  try {
+    await supaFetch('PUT','/auth/v1/user',{ password:p1 }, SESSION.accessToken);
+    $('newPass').value=''; $('confirmPass').value='';
+    msg.className='msg ok'; msg.textContent='Senha alterada ✓';
+  } catch(e){ msg.className='msg err'; msg.textContent=e.message; }
+  finally{ btn.disabled=false; btn.textContent='Trocar senha'; }
 });
 
-// ── Boot ─────────────────────────────────────────────────────────────────────
+// ══ Login ══
+async function doLogin(){
+  const email=$('wallEmail').value.trim(), password=$('wallPassword').value, msg=$('wallMsg'), btn=$('wallLoginBtn');
+  if (!email || !password) { msg.textContent='Preencha e-mail e senha.'; return; }
+  btn.textContent='ENTRANDO...'; btn.disabled=true; msg.textContent='';
+  try {
+    const data = await supaFetch('POST','/auth/v1/token?grant_type=password',{ email, password });
+    const session = { accessToken:data.access_token, refreshToken:data.refresh_token, userId:data.user?.id, email:data.user?.email, name:data.user?.user_metadata?.name||'', expiresAt:Date.now()+(data.expires_in??3600)*1000 };
+    const sub = await supaFetch('GET', `/rest/v1/subscriptions?user_id=eq.${session.userId}&select=status&limit=1`, null, session.accessToken);
+    if (!sub?.length || sub[0].status !== 'active') { msg.textContent='Sua conta não tem assinatura ativa.'; return; }
+    saveLocalSession(session); showContent(session);
+  } catch(err){
+    msg.textContent = (err.message?.includes('Invalid login')||err.message?.includes('invalid_grant')) ? 'E-mail ou senha incorretos.' : (err.message||'Erro ao fazer login.');
+  } finally { btn.textContent='ENTRAR NA ÁREA DE MEMBROS'; btn.disabled=false; }
+}
+$('wallLoginBtn').addEventListener('click', doLogin);
+$('wallPassword').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+$('logoutBtn').addEventListener('click', () => { clearLocalSession(); SESSION=null; showLoginWall(); });
+
+// ══ Navegação (views + sidebar mobile) ══
+const TITLES = { inicio:'Início', perfil:'Meu perfil', suporte:'Suporte' };
+document.querySelectorAll('.navitem[data-view]').forEach(b => b.addEventListener('click', () => {
+  const v = b.dataset.view;
+  document.querySelectorAll('.navitem[data-view]').forEach(x=>x.classList.toggle('active', x===b));
+  ['inicio','perfil','suporte'].forEach(name => $('view-'+name).classList.toggle('hidden', name!==v));
+  $('viewTitle').textContent = TITLES[v];
+  closeSidebar();
+}));
+function openSidebar(){ $('sidebar').classList.add('open'); $('backdrop').classList.add('show'); }
+function closeSidebar(){ $('sidebar').classList.remove('open'); $('backdrop').classList.remove('show'); }
+$('menuToggle').addEventListener('click', openSidebar);
+$('backdrop').addEventListener('click', closeSidebar);
+
+// ══ Boot ══
 checkAndShowContent();
 </script>
-
 </body>
 </html>
