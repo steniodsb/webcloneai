@@ -487,6 +487,79 @@ app.get('/api/admin/billing', requireAdmin, async (_req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Admin: conteúdo da área de membros (módulos, aulas, banner) ───────────────
+
+app.get('/api/admin/members-content', requireAdmin, async (_req, res) => {
+  try {
+    const [modules, lessons, settings] = await Promise.all([
+      supaAdmin('GET', '/rest/v1/modules?select=*&order=position'),
+      supaAdmin('GET', '/rest/v1/lessons?select=*&order=position'),
+      supaAdmin('GET', '/rest/v1/members_settings?id=eq.1&select=*&limit=1'),
+    ]);
+    res.json({ modules: modules || [], lessons: lessons || [], settings: (settings && settings[0]) || null });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/admin/members-settings', requireAdmin, async (req, res) => {
+  try {
+    const body = { updated_at: new Date().toISOString() };
+    ['banner_title', 'banner_subtitle', 'banner_image_url'].forEach(k => { if (req.body?.[k] !== undefined) body[k] = req.body[k]; });
+    await supaAdmin('PATCH', '/rest/v1/members_settings?id=eq.1', [body]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/admin/modules', requireAdmin, async (req, res) => {
+  try {
+    if (!req.body?.title) return res.status(400).json({ error: 'Título obrigatório.' });
+    const r = await supaAdmin('POST', '/rest/v1/modules', [{ title: req.body.title, position: req.body.position || 0 }]);
+    res.json({ ok: true, module: r?.[0] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.patch('/api/admin/modules/:id', requireAdmin, async (req, res) => {
+  try {
+    const body = {};
+    ['title', 'position'].forEach(k => { if (req.body?.[k] !== undefined) body[k] = req.body[k]; });
+    await supaAdmin('PATCH', `/rest/v1/modules?id=eq.${encodeURIComponent(req.params.id)}`, [body]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/admin/modules/:id', requireAdmin, async (req, res) => {
+  try {
+    await supaAdmin('DELETE', `/rest/v1/modules?id=eq.${encodeURIComponent(req.params.id)}`);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/admin/lessons', requireAdmin, async (req, res) => {
+  try {
+    const b = req.body || {};
+    if (!b.title) return res.status(400).json({ error: 'Título obrigatório.' });
+    const row = {
+      title: b.title, description: b.description || null, duration: b.duration || null,
+      status: b.status === 'soon' ? 'soon' : 'available', video_url: b.video_url || null,
+      module_id: b.module_id || null, position: b.position || 0,
+    };
+    const r = await supaAdmin('POST', '/rest/v1/lessons', [row]);
+    res.json({ ok: true, lesson: r?.[0] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.patch('/api/admin/lessons/:id', requireAdmin, async (req, res) => {
+  try {
+    const b = req.body || {}; const body = { updated_at: new Date().toISOString() };
+    ['title', 'description', 'duration', 'status', 'video_url', 'material_url', 'module_id', 'position'].forEach(k => { if (b[k] !== undefined) body[k] = b[k]; });
+    if (body.status && body.status !== 'soon') body.status = 'available';
+    await supaAdmin('PATCH', `/rest/v1/lessons?id=eq.${encodeURIComponent(req.params.id)}`, [body]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/admin/lessons/:id', requireAdmin, async (req, res) => {
+  try {
+    await supaAdmin('DELETE', `/rest/v1/lessons?id=eq.${encodeURIComponent(req.params.id)}`);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Arquivos estáticos (LP, checkout, área de membros) ────────────────────────
 
 const SITE_ROOT = path.join(__dirname, '..');

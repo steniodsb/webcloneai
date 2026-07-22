@@ -50,6 +50,25 @@ td .row-actions{display:flex;gap:7px;flex-wrap:wrap}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#15171d;border:1px solid var(--line);padding:12px 20px;border-radius:12px;font-size:13.5px;opacity:0;transition:.3s;pointer-events:none}
 .toast.show{opacity:1}
 .mut{color:var(--t3);font-size:12px}
+/* área de membros (admin) */
+.mcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;max-width:540px;margin-bottom:26px}
+.mtitle{margin:0 0 14px;font-size:16px;font-weight:600}
+.mmsg{display:inline-block;margin-left:12px;font-size:12.5px;color:var(--t2)}
+.mhead{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 16px}
+.addmod{display:flex;gap:8px}
+.addmod input{width:230px}
+select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:#fff;font-size:14px}
+.modcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:14px}
+.modcard .mh{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.modcard .mh input{flex:1;font-weight:600}
+.lrow{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:rgba(255,255,255,.02)}
+.lrow .lt{flex:1;font-size:14px}.lrow .lt small{display:block;color:var(--t3);font-size:11.5px;margin-top:2px}
+.lf-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:60;align-items:center;justify-content:center;padding:20px}
+.lf-overlay.show{display:flex}
+.lf{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;width:100%;max-width:470px;max-height:90vh;overflow:auto}
+.lf h3{margin:0 0 12px;font-size:17px}
+.lf-row{display:flex;gap:12px}.lf-row>div{flex:1}
+.lf-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
 </style>
 </head>
 <body>
@@ -80,6 +99,7 @@ td .row-actions{display:flex;gap:7px;flex-wrap:wrap}
     <div class="tabs">
       <button class="tab active" data-tab="subs">Assinantes</button>
       <button class="tab" data-tab="billing">Faturamento</button>
+      <button class="tab" data-tab="members">Área de membros</button>
     </div>
 
     <!-- Assinantes -->
@@ -106,6 +126,46 @@ td .row-actions{display:flex;gap:7px;flex-wrap:wrap}
         <tbody id="billBody"><tr><td colspan="4" class="empty">Carregando…</td></tr></tbody>
       </table>
     </section>
+
+    <!-- Área de membros -->
+    <section id="tab-members" class="hidden">
+      <div class="mcard">
+        <h3 class="mtitle">Banner de boas-vindas</h3>
+        <label>Título</label><input id="bTitle" placeholder="Bem-vindo à Área de Membros">
+        <label>Subtítulo</label><input id="bSub" placeholder="Baixe a extensão e siga os tutoriais.">
+        <label>URL da imagem (opcional)</label><input id="bImg" placeholder="https://…">
+        <div style="margin-top:16px"><button class="btn btn-1" id="saveBannerBtn" style="padding:10px 18px">Salvar banner</button><span class="mmsg" id="bannerMsg"></span></div>
+      </div>
+
+      <div class="mhead">
+        <h3 class="mtitle" style="margin:0">Módulos e aulas</h3>
+        <div class="addmod">
+          <input id="newModTitle" placeholder="Nome do novo módulo">
+          <button class="btn btn-s" id="addModBtn">+ Módulo</button>
+        </div>
+      </div>
+      <div id="modulesAdmin"><div class="empty">Carregando…</div></div>
+    </section>
+  </div>
+</div>
+
+<!-- Modal de aula -->
+<div class="lf-overlay" id="lfOverlay">
+  <div class="lf">
+    <h3 id="lfTitle">Nova aula</h3>
+    <label>Título</label><input id="lfName">
+    <label>Descrição</label><input id="lfDesc">
+    <div class="lf-row">
+      <div><label>Duração</label><input id="lfDur" placeholder="3:45"></div>
+      <div><label>Posição</label><input id="lfPos" type="number" placeholder="1"></div>
+    </div>
+    <div class="lf-row">
+      <div><label>Status</label><select id="lfStatus"><option value="available">Disponível</option><option value="soon">Em breve</option></select></div>
+      <div><label>Módulo</label><select id="lfModule"></select></div>
+    </div>
+    <label>URL do vídeo (opcional)</label><input id="lfVideo" placeholder="https://…">
+    <div class="lf-actions"><button class="btn btn-s" id="lfCancel">Cancelar</button><button class="btn btn-1" id="lfSave">Salvar</button></div>
+    <div class="mmsg" id="lfMsg" style="margin:10px 0 0"></div>
   </div>
 </div>
 
@@ -157,9 +217,9 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');
   const tab=t.dataset.tab;
-  $('tab-subs').classList.toggle('hidden', tab!=='subs');
-  $('tab-billing').classList.toggle('hidden', tab!=='billing');
+  ['subs','billing','members'].forEach(name => $('tab-'+name).classList.toggle('hidden', name!==tab));
   if(tab==='billing') loadBilling();
+  if(tab==='members') loadMembersAdmin();
 }));
 
 // ---- Assinantes ----
@@ -213,6 +273,85 @@ async function loadBilling(){
       <td><span class="pill active">${p.status}</span></td><td>${fmtDate(p.date)}</td></tr>`).join('');
   }catch(err){ body.innerHTML=`<tr><td colspan="4" class="empty">${err.message}</td></tr>`; }
 }
+
+// ---- Área de membros (admin) ----
+let M_MODULES=[], M_LESSONS=[], M_SETTINGS=null, LF_EDIT=null;
+
+async function loadMembersAdmin(){
+  const box=$('modulesAdmin');
+  try{
+    const d = await api('/api/admin/members-content');
+    M_MODULES=d.modules||[]; M_LESSONS=d.lessons||[]; M_SETTINGS=d.settings||null;
+    $('bTitle').value = M_SETTINGS?.banner_title || '';
+    $('bSub').value   = M_SETTINGS?.banner_subtitle || '';
+    $('bImg').value   = M_SETTINGS?.banner_image_url || '';
+    renderModulesAdmin();
+  }catch(err){ box.innerHTML=`<div class="empty">${err.message}</div>`; }
+}
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+function renderModulesAdmin(){
+  const box=$('modulesAdmin');
+  const byMod={}; M_LESSONS.forEach(l=>{const k=l.module_id||'_none';(byMod[k]=byMod[k]||[]).push(l);});
+  Object.values(byMod).forEach(a=>a.sort((x,y)=>(x.position||0)-(y.position||0)));
+  const lrow=l=>`<div class="lrow"><div class="lt">${esc(l.title)}<small>AULA ${String(l.position||0).padStart(2,'0')} · ${l.status==='soon'?'Em breve':'Disponível'}${l.duration?' · '+esc(l.duration):''}</small></div><button class="btn btn-s" data-editl="${l.id}">Editar</button><button class="btn btn-s" data-dell="${l.id}">×</button></div>`;
+  let html='';
+  [...M_MODULES].sort((a,b)=>(a.position||0)-(b.position||0)).forEach(m=>{
+    const ls=byMod[m.id]||[];
+    html+=`<div class="modcard"><div class="mh"><input class="modName" data-mod="${m.id}" value="${esc(m.title)}"><button class="btn btn-s" data-addl="${m.id}">+ Aula</button><button class="btn btn-s" data-delmod="${m.id}">Excluir</button></div>${ls.length?ls.map(lrow).join(''):'<div class="empty" style="padding:12px">Sem aulas.</div>'}</div>`;
+  });
+  if(byMod['_none']?.length){ html+=`<div class="modcard"><div class="mh"><input value="Sem módulo" disabled></div>${byMod['_none'].map(lrow).join('')}</div>`; }
+  box.innerHTML = html || '<div class="empty">Nenhum módulo. Crie um acima.</div>';
+}
+$('saveBannerBtn').addEventListener('click', async ()=>{
+  const msg=$('bannerMsg'); msg.textContent='Salvando…';
+  try{ await api('/api/admin/members-settings',{method:'PATCH',body:JSON.stringify({banner_title:$('bTitle').value,banner_subtitle:$('bSub').value,banner_image_url:$('bImg').value})}); msg.textContent='Salvo ✓'; }
+  catch(e){ msg.textContent=e.message; }
+});
+$('addModBtn').addEventListener('click', async ()=>{
+  const t=$('newModTitle').value.trim(); if(!t) return;
+  try{ await api('/api/admin/modules',{method:'POST',body:JSON.stringify({title:t,position:M_MODULES.length+1})}); $('newModTitle').value=''; loadMembersAdmin(); }
+  catch(e){ toast(e.message); }
+});
+$('modulesAdmin').addEventListener('click', async e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  try{
+    if(b.dataset.delmod){ if(!confirm('Excluir este módulo? As aulas dele ficam sem módulo.'))return; await api(`/api/admin/modules/${b.dataset.delmod}`,{method:'DELETE'}); loadMembersAdmin(); }
+    else if(b.dataset.dell){ if(!confirm('Excluir esta aula?'))return; await api(`/api/admin/lessons/${b.dataset.dell}`,{method:'DELETE'}); loadMembersAdmin(); }
+    else if(b.dataset.addl){ openLessonForm(null, b.dataset.addl); }
+    else if(b.dataset.editl){ openLessonForm(M_LESSONS.find(x=>x.id===b.dataset.editl)); }
+  }catch(err){ toast(err.message); }
+});
+$('modulesAdmin').addEventListener('change', async e=>{
+  const inp=e.target.closest('.modName'); if(!inp||!inp.dataset.mod) return;
+  try{ await api(`/api/admin/modules/${inp.dataset.mod}`,{method:'PATCH',body:JSON.stringify({title:inp.value.trim()})}); toast('Módulo renomeado.'); }
+  catch(err){ toast(err.message); }
+});
+function openLessonForm(lesson, moduleId){
+  LF_EDIT = lesson || null;
+  $('lfTitle').textContent = lesson ? 'Editar aula' : 'Nova aula';
+  $('lfName').value = lesson?.title || '';
+  $('lfDesc').value = lesson?.description || '';
+  $('lfDur').value  = lesson?.duration || '';
+  $('lfPos').value  = lesson?.position || (M_LESSONS.length+1);
+  $('lfStatus').value = lesson?.status || 'available';
+  $('lfVideo').value = lesson?.video_url || '';
+  $('lfModule').innerHTML = '<option value="">— Sem módulo —</option>'+M_MODULES.map(m=>`<option value="${m.id}">${esc(m.title)}</option>`).join('');
+  $('lfModule').value = lesson?.module_id || moduleId || '';
+  $('lfMsg').textContent='';
+  $('lfOverlay').classList.add('show');
+}
+$('lfCancel').addEventListener('click', ()=>$('lfOverlay').classList.remove('show'));
+$('lfSave').addEventListener('click', async ()=>{
+  const p={ title:$('lfName').value.trim(), description:$('lfDesc').value.trim(), duration:$('lfDur').value.trim(), position:Number($('lfPos').value)||0, status:$('lfStatus').value, module_id:$('lfModule').value||null, video_url:$('lfVideo').value.trim() };
+  if(!p.title){ $('lfMsg').textContent='Informe o título.'; return; }
+  const btn=$('lfSave'); btn.disabled=true; btn.textContent='Salvando…';
+  try{
+    if(LF_EDIT) await api(`/api/admin/lessons/${LF_EDIT.id}`,{method:'PATCH',body:JSON.stringify(p)});
+    else await api('/api/admin/lessons',{method:'POST',body:JSON.stringify(p)});
+    $('lfOverlay').classList.remove('show'); loadMembersAdmin();
+  }catch(e){ $('lfMsg').textContent=e.message; }
+  finally{ btn.disabled=false; btn.textContent='Salvar'; }
+});
 
 function showApp(){ $('login').classList.add('hidden'); $('app').classList.remove('hidden'); loadSubs(); }
 
