@@ -133,6 +133,7 @@ document.getElementById('checkoutForm').addEventListener('submit', async functio
       if (data.status === 'CONFIRMED' || data.status === 'RECEIVED') {
         showMsg('✅ Pagamento confirmado! Verifique seu e-mail para acessar sua conta.', 'ok');
         document.getElementById('checkoutForm').style.display = 'none';
+        if (window.fbq) fbq('track', 'Purchase', { value: 29.90, currency: 'BRL' });
       } else {
         throw new Error('Pagamento não confirmado. Tente novamente ou use PIX.');
       }
@@ -211,6 +212,7 @@ async function verifyAccess(email) {
       msg.className = 'form-msg ok';
       msg.textContent = '✅ Pagamento confirmado! Verifique seu e-mail para acessar sua conta.';
       btn.style.display = 'none';
+      if (window.fbq) fbq('track', 'Purchase', { value: 29.90, currency: 'BRL' });
     } else {
       msg.className = 'form-msg err';
       msg.textContent = 'Pagamento ainda não confirmado. Aguarde alguns instantes e tente novamente.';

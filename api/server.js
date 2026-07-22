@@ -21,7 +21,7 @@ const {
   WEBHOOK_SECRET,         // string secreta para validar webhooks Asaas
   RESEND_API_KEY,         // chave do Resend — entrega confiável de e-mail
   RESEND_FROM = 'Web Clone AI <acesso@webcloneai.com.br>',
-  ADMIN_EMAIL = 'admin@webcloneai.com.br',  // e-mail de login do painel admin
+  ADMIN_EMAILS = 'contato@webcloneai.com.br,admin@webcloneai.com.br',  // logins do admin (vírgula separa vários)
   ADMIN_PASSWORD,         // senha do painel admin (defina na env — sem ela o admin fica bloqueado)
   ADMIN_SECRET,           // segredo p/ assinar o token de sessão do admin
   PORT = 3000,
@@ -410,7 +410,7 @@ app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 // ── Painel admin ──────────────────────────────────────────────────────────────
 
 function signAdminToken() {
-  const payload = Buffer.from(JSON.stringify({ e: ADMIN_EMAIL, exp: Date.now() + 8 * 3600 * 1000 })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ e: 'admin', exp: Date.now() + 8 * 3600 * 1000 })).toString('base64url');
   const sig = crypto.createHmac('sha256', ADMIN_TOKEN_SECRET).update(payload).digest('base64url');
   return `${payload}.${sig}`;
 }
@@ -432,7 +432,8 @@ function requireAdmin(req, res, next) {
 app.post('/api/admin/login', (req, res) => {
   const { email, password } = req.body || {};
   if (!ADMIN_PASSWORD) return res.status(503).json({ error: 'Admin não configurado (defina ADMIN_PASSWORD).' });
-  const ok = String(email || '').trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() && password === ADMIN_PASSWORD;
+  const allowed = ADMIN_EMAILS.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const ok = allowed.includes(String(email || '').trim().toLowerCase()) && password === ADMIN_PASSWORD;
   if (!ok) return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
   res.json({ token: signAdminToken() });
 });
