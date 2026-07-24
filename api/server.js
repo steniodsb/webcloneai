@@ -29,9 +29,18 @@ const {
 
 const ADMIN_TOKEN_SECRET = ADMIN_SECRET || WEBHOOK_SECRET || 'troque-este-segredo';
 
-const ASAAS_BASE = ASAAS_SANDBOX === 'true'
-  ? 'https://sandbox.asaas.com/api/v3'
-  : 'https://api.asaas.com/api/v3';
+// A própria chave diz o ambiente ($aact_prod_* = produção). Se ASAAS_SANDBOX
+// contradisser a chave, a chave manda — senão o Asaas responde 401 invalid_environment.
+const ASAAS_KEY_IS_PROD = /^\$aact_prod/i.test(ASAAS_API_KEY || '');
+const USE_SANDBOX = ASAAS_KEY_IS_PROD ? false : ASAAS_SANDBOX === 'true';
+
+if (ASAAS_KEY_IS_PROD && ASAAS_SANDBOX === 'true') {
+  console.warn('[asaas] ASAAS_SANDBOX=true com chave de produção — usando produção.');
+}
+
+const ASAAS_BASE = USE_SANDBOX
+  ? 'https://api-sandbox.asaas.com/v3'
+  : 'https://api.asaas.com/v3';
 
 // ── Validação de CPF ──────────────────────────────────────────────────────────
 
@@ -353,6 +362,19 @@ app.post('/api/webhook/asaas', express.json(), async (req, res) => {
   res.json({ received: true });
 });
 
+// ── Busca de usuário por e-mail ───────────────────────────────────────────────
+
+// O admin do GoTrue ignora `?email=` e devolve a lista inteira — quem usasse isso
+// pegava o primeiro usuário qualquer. `filter` faz ILIKE no e-mail; o match exato
+// abaixo garante o resto.
+async function findUserByEmail(email) {
+  const wanted = String(email || '').trim().toLowerCase();
+  if (!wanted) return null;
+  const r = await supaAdmin('GET', `/auth/v1/admin/users?filter=${encodeURIComponent(wanted)}&per_page=100`);
+  const list = r?.users || (Array.isArray(r) ? r : []);
+  return list.find(u => String(u.email || '').toLowerCase() === wanted) || null;
+}
+
 // ── Endpoint: GET /api/user/status ────────────────────────────────────────────
 
 app.get('/api/user/status', async (req, res) => {
@@ -360,13 +382,10 @@ app.get('/api/user/status', async (req, res) => {
   if (!email) return res.status(400).json({ error: 'E-mail obrigatório.' });
 
   try {
-    const users = await supaAdmin(
-      'GET',
-      `/auth/v1/admin/users?email=${encodeURIComponent(email)}&limit=1`
-    );
-    if (!users?.users?.length) return res.json({ status: 'not_found' });
+    const user = await findUserByEmail(email);
+    if (!user) return res.json({ status: 'not_found' });
 
-    const userId = users.users[0].id;
+    const userId = user.id;
     const subs = await supaAdmin(
       'GET',
       `/rest/v1/subscriptions?user_id=eq.${userId}&select=status,plan&limit=1`
@@ -386,16 +405,12 @@ app.get('/api/payment/status', async (req, res) => {
   if (!email) return res.status(400).json({ error: 'E-mail obrigatório.' });
 
   try {
-    const users = await supaAdmin(
-      'GET',
-      `/auth/v1/admin/users?email=${encodeURIComponent(email)}&limit=1`
-    );
-    if (!users?.users?.length) return res.json({ paid: false });
+    const user = await findUserByEmail(email);
+    if (!user) return res.json({ paid: false });
 
-    const userId = users.users[0].id;
     const subs = await supaAdmin(
       'GET',
-      `/rest/v1/subscriptions?user_id=eq.${userId}&status=eq.active&select=id&limit=1`
+      `/rest/v1/subscriptions?user_id=eq.${user.id}&status=eq.active&select=id&limit=1`
     );
     return res.json({ paid: !!subs?.length });
   } catch (err) {
@@ -620,5 +635,5 @@ app.get('/download/web-clone-ai.zip', async (_req, res) => {
 // ── Start ─────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
-  console.log(`[Web Clone AI API] rodando na porta ${PORT} — ${ASAAS_SANDBOX === 'true' ? 'SANDBOX' : 'PRODUÇÃO'}`);
+  console.log(`[Web Clone AI API] rodando na porta ${PORT} — ${USE_SANDBOX ? 'SANDBOX' : 'PRODUÇÃO'} (${ASAAS_BASE})`);
 });
