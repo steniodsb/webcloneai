@@ -239,7 +239,10 @@ header {
   padding: 1.5px;
   overflow: hidden;
   margin: 10px 12px 0;
+  transition: transform .14s ease;
 }
+.bw:has(.export-btn:not(:disabled)):hover  { transform: translateY(-1px); }
+.bw:has(.export-btn:not(:disabled)):active { transform: scale(.985); }
 
 .bspin {
   position: absolute;
@@ -287,12 +290,10 @@ header {
 }
 
 .export-btn:hover:not(:disabled) {
-  filter: brightness(0.92);
-  transform: translateY(-0.5px);
+  filter: brightness(0.94);
 }
 
 .export-btn:active:not(:disabled) {
-  transform: scale(0.985);
   filter: brightness(0.88);
 }
 
