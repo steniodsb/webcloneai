@@ -268,13 +268,26 @@ app.post('/api/checkout', async (req, res) => {
       await createSupabaseUser(email, plan, customer.id, payment.id);
     }
 
+    // 3. Para PIX, o QR Code vem de um endpoint separado do Asaas
+    let pix = {};
+    if (paymentMethod === 'pix' && payment.id) {
+      try {
+        const qr = await asaas('GET', `/payments/${payment.id}/pixQrCode`);
+        pix = {
+          pixCopiaECola:  qr.payload,
+          pixQrCode:      qr.encodedImage,
+          expirationDate: qr.expirationDate,
+        };
+      } catch (e) {
+        console.error('[checkout] falha ao buscar QR do PIX:', e.message);
+      }
+    }
+
     // Resposta ao front
     res.json({
-      status:          payment.status,
-      pixCopiaECola:   payment.pixQrCode?.payload,
-      pixQrCode:       payment.pixQrCode?.encodedImage,
-      expirationDate:  payment.pixQrCode?.expirationDate,
-      invoiceUrl:      payment.invoiceUrl,
+      status:     payment.status,
+      invoiceUrl: payment.invoiceUrl,
+      ...pix,
     });
 
   } catch (err) {
