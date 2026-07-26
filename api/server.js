@@ -20,7 +20,7 @@ const {
   SUPABASE_URL,
   SUPABASE_SERVICE_KEY,   // chave service_role (secreta) — NÃO é a anon key
   WEBHOOK_SECRET,         // string secreta para validar webhooks Asaas
-  RESEND_API_KEY,         // chave do Resend — entrega confiável de e-mail
+  RESEND_API_KEY: RESEND_API_KEY_RAW,  // chave do Resend — entrega confiável de e-mail
   RESEND_FROM = 'Web Clone AI <acesso@webcloneai.com.br>',
   ADMIN_EMAILS = 'contato@webcloneai.com.br,admin@webcloneai.com.br',  // logins do admin (vírgula separa vários)
   ADMIN_PASSWORD,         // senha do painel admin (defina na env — sem ela o admin fica bloqueado)
@@ -29,6 +29,19 @@ const {
 } = process.env;
 
 const ADMIN_TOKEN_SECRET = ADMIN_SECRET || WEBHOOK_SECRET || 'troque-este-segredo';
+
+// Um .env com duas variáveis na mesma linha já fez a chave virar
+// `"re_xxx" ADMIN_EMAILS=...` — o Resend respondia 401 e o cliente pagava sem
+// receber a senha, com o erro só num console.error. Limpa e valida no boot.
+const RESEND_API_KEY = (RESEND_API_KEY_RAW || '').trim().replace(/^["']|["']$/g, '');
+
+if (RESEND_API_KEY_RAW && !/^re_[A-Za-z0-9_-]+$/.test(RESEND_API_KEY)) {
+  console.error(
+    '[resend] RESEND_API_KEY com formato inválido (esperado "re_…", sem aspas nem ' +
+    'espaços). O e-mail de acesso NÃO vai sair. Confira se não há duas variáveis ' +
+    'na mesma linha do .env.'
+  );
+}
 
 // A própria chave diz o ambiente ($aact_prod_* = produção). Se ASAAS_SANDBOX
 // contradisser a chave, a chave manda — senão o Asaas responde 401 invalid_environment.
