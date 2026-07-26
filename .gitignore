@@ -6,3 +6,9 @@ api/node_modules/
 *.crx
 .DS_Store
 Thumbs.db
+
+# Vídeos brutos de marketing — pesados e não fazem parte do produto.
+# O vídeo da landing entra comprimido em landing/video/.
+VIDEOS WEB CLONE AI/
+*.mp4
+!landing/video/*.mp4
