@@ -220,6 +220,21 @@ class WebClonerAI {
     } catch (_) {}
   }
 
+  // ─── Overlay de progresso na página ────────────────────────────────────────
+  // O content script desenha; o popup manda o progresso porque é ele que sabe
+  // do trabalho pesado (baixar assets, screenshots, montar o ZIP).
+  // Faixas: extração 0-15 · mirror 15-70 · screenshots 70-85 · zip 85-96 · download 96-100
+  _progress(percent, message) {
+    if (!this.tab?.id) return;
+    chrome.tabs.sendMessage(this.tab.id, { action: 'CLONE_PROGRESS', percent, message })
+      .catch(() => {});   // aba fechada/navegou — progresso é best-effort
+  }
+
+  _overlay(action, extra) {
+    if (!this.tab?.id) return Promise.resolve();
+    return chrome.tabs.sendMessage(this.tab.id, { action, ...extra }).catch(() => {});
+  }
+
   _renderFrameworkBadges(frameworks) {
     if (!frameworks.length) return;
     this.frameworkBadges.innerHTML = '';
@@ -284,6 +299,7 @@ class WebClonerAI {
       // Espelhar TODOS os recursos estáticos (JS, CSS, fontes, imagens, mídia)
       let mirrorStats = { total: 0, text: 0 };
       if (doAssets) {
+        this._progress(15, 'Preparando o download dos arquivos…');
         // Envia o Referer do site original durante o download — libera assets com
         // proteção anti-hotlink (CDNs que respondem 403 a Referer de terceiros).
         await this._setRefererRule(pageData.meta.origin);
@@ -300,6 +316,7 @@ class WebClonerAI {
       let shotsCount = 0;
       if (doScreenshots) {
         try {
+          this._progress(70, 'Fotografando cada seção da página…');
           const shots = await this._captureScreenshots(tab.id, tab.windowId);
           const folder = this.zip.folder('screenshots');
           for (const { index, data } of shots) {
@@ -314,6 +331,7 @@ class WebClonerAI {
 
       // Step 3: montar o pacote
       this._stepActive('zip');
+      this._progress(85, 'Montando o pacote do site…');
 
       // index.html = HTML servido, com todas as URLs reescritas para o mirror
       // local e o JS PRESERVADO → roda idêntico com `npx serve`.
@@ -348,6 +366,7 @@ class WebClonerAI {
 
       // Step 4: Download
       this._stepActive('download');
+      this._progress(96, 'Compactando o ZIP…');
       const blob = await this.zip.generateAsync({
         type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 },
       });
@@ -356,10 +375,12 @@ class WebClonerAI {
       await chrome.downloads.download({ url, filename, saveAs: false });
       this._stepDone('download');
 
+      this._overlay('CLONE_DONE');
       this._showStatus(`✓ ${filename} salvo com sucesso!`, 'ok');
 
     } catch (err) {
       console.error('[WCA]', err);
+      this._overlay('CLONE_HIDE');
       this._showStatus(err.message, 'err');
     } finally {
       this._endRun();
@@ -374,6 +395,17 @@ class WebClonerAI {
   async _captureScreenshots(tabId, windowId) {
     const shots = [];
     await this._ensureContentScript(tabId);
+    // O overlay cobre a tela inteira — sem tirá-lo da frente, ele apareceria em
+    // TODOS os screenshots. Fica escondido durante a rolagem e volta no fim.
+    await this._overlay('CLONE_MASK', { on: true });
+    try {
+      return await this._captureLoop(tabId, windowId, shots);
+    } finally {
+      await this._overlay('CLONE_MASK', { on: false });
+    }
+  }
+
+  async _captureLoop(tabId, windowId, shots) {
     await chrome.tabs.sendMessage(tabId, { action: 'SCROLL_TOP' });
     await this._delay(500);
     const info = await chrome.tabs.sendMessage(tabId, { action: 'SCROLL_INFO' });
@@ -390,6 +422,7 @@ class WebClonerAI {
       if (res.ok) {
         shots.push({ index: i + 1, data: res.dataUrl.split(',')[1] });
         this._updateStepLabel('shots', `Screenshot ${i + 1}/${steps}`);
+        this._progress(70 + Math.round(((i + 1) / steps) * 14), null);
       }
     }
     await chrome.tabs.sendMessage(tabId, { action: 'SCROLL_TOP' });
@@ -650,8 +683,13 @@ class WebClonerAI {
           failures.push({ url, type: res.type || '?', error: (e && e.message) || String(e) });
         }
       }));
-      this._updateStepLabel('dom', `Mirror ${Math.min(i + CONCURRENT, list.length)}/${list.length}`);
+      const done = Math.min(i + CONCURRENT, list.length);
+      this._updateStepLabel('dom', `Mirror ${done}/${list.length}`);
+      // 15 → 68: o grosso do tempo é aqui (centenas de arquivos)
+      this._progress(15 + Math.round((done / list.length) * 53),
+                     `Copiando arquivo ${done} de ${list.length} (JS, CSS, fontes, imagens)…`);
     }
+    this._progress(69, `Reescrevendo ${textItems.length} arquivos de código…`);
     // 2ª passada: reescrever CSS/JS com o mapa completo de URLs
     for (const it of textItems) {
       const out = it.kind === 'css'

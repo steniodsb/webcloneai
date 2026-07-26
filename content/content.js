@@ -7,14 +7,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   if (message.action === 'EXTRACT_PAGE') {
     _cloneOverlay.show();
+    // NÃO finaliza aqui: a extração é só o começo. O trabalho pesado (baixar
+    // centenas de assets, screenshots, montar o ZIP) roda no popup depois —
+    // quem fecha o overlay é o CLONE_DONE.
     extractPage()
-      .then(data => { _cloneOverlay.finish(); sendResponse({ ok: true, data }); })
+      .then(data => sendResponse({ ok: true, data }))
       .catch(err => { _cloneOverlay.hide(); sendResponse({ ok: false, error: err.message }); });
     return true;
   }
   if (message.action === 'CLONE_PROGRESS') { _cloneOverlay.step(message.percent, message.message); return false; }
   if (message.action === 'CLONE_DONE')     { _cloneOverlay.finish(); return false; }
   if (message.action === 'CLONE_HIDE')     { _cloneOverlay.hide(); return false; }
+  // Some da frente enquanto o popup fotografa a aba (senão o overlay aparece
+  // em cima de todos os screenshots).
+  if (message.action === 'CLONE_MASK')     { _cloneOverlay.mask(!!message.on); sendResponse({ ok: true }); return false; }
   if (message.action === 'SCROLL_INFO') {
     sendResponse({
       ok: true,
@@ -201,7 +207,7 @@ async function extractPage() {
   // 0. Estabilizar a página ANTES de capturar: rola tudo para disparar lazy-load
   //    de imagens e revelar animações on-scroll (AOS/GSAP), depois espera as
   //    imagens decodificarem. Sem isso, o DOM sai com placeholders e seções ocultas.
-  _cloneOverlay.step(6, 'Escaneando e estabilizando a página…');
+  _cloneOverlay.step(3, 'Escaneando a página inteira…');
   await settlePage();
 
   // Snapshot fiel do DOM renderizado (JS neutralizado) — fallback visual estático
@@ -213,9 +219,9 @@ async function extractPage() {
 
   // TODOS os recursos que a página realmente carregou (JS, CSS, fontes, imagens,
   // mídia, XHR/fetch) via Resource Timing + varredura do DOM.
-  _cloneOverlay.step(38, 'Copiando a estrutura da página…');
+  _cloneOverlay.step(7, 'Lendo a estrutura da página…');
   const resources = collectResources(base);
-  _cloneOverlay.step(64, 'Mapeando ' + resources.length + ' recursos (JS, CSS, fontes)…');
+  _cloneOverlay.step(9, 'Encontrei ' + resources.length + ' recursos (JS, CSS, fontes)…');
 
   // External stylesheet URLs
   const sheetUrls = [];
@@ -243,7 +249,7 @@ async function extractPage() {
 
   // Mídias (vídeos, áudios, embeds)
   const media = collectMedia(imageSet, base);
-  _cloneOverlay.step(82, 'Copiando ' + imageSet.size + ' imagens e mídias…');
+  _cloneOverlay.step(11, 'Encontrei ' + imageSet.size + ' imagens e mídias…');
 
   // Design specs computados, SVGs inline, SEO e responsividade
   const designSpec = extractDesignSpec();
@@ -251,7 +257,7 @@ async function extractPage() {
   const seo = extractSeo();
   const responsive = extractResponsive();
 
-  _cloneOverlay.step(94, 'Extraindo estilos, SVGs e SEO…');
+  _cloneOverlay.step(13, 'Extraindo estilos, SVGs e SEO…');
   const meta = {
     title: document.title || 'Projeto Exportado',
     description: document.querySelector('meta[name="description"]')?.content || '',
@@ -400,6 +406,9 @@ function buildSnapshot(base) {
 
   // Restaura o DOM vivo (remove o marcador temporário)
   liveImgs.forEach(im => im.removeAttribute('data-wca-idx'));
+
+  // O nosso próprio overlay de progresso não pode acabar dentro do clone
+  root.querySelector('#__wca_clone_overlay')?.remove();
 
   // 1. Imagens: aplica o src real e promove atributos de lazy-load
   for (const img of root.querySelectorAll('img')) {
@@ -704,7 +713,8 @@ function collectImageUrls(set, base) {
 
 // ── Overlay central de clonagem (Shadow DOM — isolado do CSS da página) ───────
 const _cloneOverlay = (() => {
-  let host, root, fill, pctEl, msgEl, creep, cur = 0, active = false;
+  let host, root, fill, pctEl, msgEl, warnEl, creep, watchdog, cur = 0, mark = 0, active = false;
+  const STALL_MS = 180000;   // 3 min sem notícia do popup = clonagem interrompida
   function guard(e) { e.preventDefault(); e.returnValue = ''; return ''; }
   function ensure() {
     if (host) return;
@@ -713,7 +723,13 @@ const _cloneOverlay = (() => {
     root = host.attachShadow({ mode: 'open' });
     root.innerHTML = [
       '<style>',
-      ':host{all:initial}',
+      // O host é quem fixa na viewport. `all:initial` zera qualquer herança da
+      // página; o resto vem depois para não ser apagado por ele.
+      ':host{all:initial;position:fixed!important;inset:0!important;z-index:2147483647!important;display:block!important}',
+      // Máscara durante os screenshots. Tem de ser uma regra do próprio shadow:
+      // um !important do shadow tree ganha até de style inline !important, então
+      // esconder por style.display de fora não funciona.
+      ':host([data-wca-hidden]){display:none!important}',
       '.ov{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:rgba(6,7,9,.72);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;animation:wcaFade .3s ease}',
       '@keyframes wcaFade{from{opacity:0}to{opacity:1}}',
       '.card{width:min(420px,90vw);background:linear-gradient(180deg,#0e1015,#0a0c10);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:34px 32px;color:#fff;box-shadow:0 30px 80px rgba(0,0,0,.6);text-align:center}',
@@ -725,6 +741,9 @@ const _cloneOverlay = (() => {
       '.fill{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#8a94a6,#eef1f5);transition:width .4s cubic-bezier(.3,.7,.3,1)}',
       '.msg{font-size:13.5px;color:rgba(255,255,255,.66);min-height:18px}',
       '.warn{margin-top:22px;padding:12px 14px;border-radius:12px;font-size:12.5px;line-height:1.5;background:rgba(232,180,90,.08);border:1px solid rgba(232,180,90,.28);color:#e8c07a}',
+      '.cancel{margin-top:14px;background:none;border:none;color:rgba(255,255,255,.42);font-size:12px;font-family:inherit;cursor:pointer;padding:6px;text-decoration:underline;text-underline-offset:3px}',
+      '.cancel:hover{color:rgba(255,255,255,.75)}',
+      '.warn.stalled{background:rgba(255,90,90,.08);border-color:rgba(255,90,90,.3);color:#ff9b9b}',
       '@media (prefers-reduced-motion: reduce){.spin{animation:none}}',
       '</style>',
       '<div class="ov"><div class="card">',
@@ -734,20 +753,64 @@ const _cloneOverlay = (() => {
       '<div class="bar"><div class="fill"></div></div>',
       '<div class="msg">Preparando…</div>',
       '<div class="warn">⚠️ Não feche nem saia desta aba até a clonagem terminar — isso interrompe a cópia do site.</div>',
+      '<button class="cancel" type="button">Fechar este aviso</button>',
       '</div></div>'
     ].join('');
-    (document.body || document.documentElement).appendChild(host);
-    fill = root.querySelector('.fill'); pctEl = root.querySelector('.pct'); msgEl = root.querySelector('.msg');
+    // Pendura no <html>, não no <body>: um transform/filter no body (Lenis, GSAP,
+    // page-transitions — justamente os sites que a gente clona) vira containing
+    // block e o position:fixed deixaria de acompanhar o centro da viewport.
+    (document.documentElement || document.body).appendChild(host);
+    fill = root.querySelector('.fill'); pctEl = root.querySelector('.pct');
+    msgEl = root.querySelector('.msg'); warnEl = root.querySelector('.warn');
+    // Saída manual: nunca deixar o usuário preso atrás do overlay
+    root.querySelector('.cancel').addEventListener('click', hide);
+  }
+
+  // Se o popup for fechado no meio, ninguém mais manda progresso e o overlay
+  // ficaria travado na tela (com o beforeunload prendendo a aba). Este watchdog
+  // solta tudo e explica o que houve.
+  function armWatchdog() {
+    clearTimeout(watchdog);
+    watchdog = setTimeout(() => {
+      if (!active) return;
+      active = false; clearInterval(creep);
+      window.removeEventListener('beforeunload', guard);
+      if (msgEl) msgEl.textContent = 'Clonagem interrompida.';
+      if (warnEl) {
+        warnEl.className = 'warn stalled';
+        warnEl.textContent = 'A clonagem parou — o popup da extensão provavelmente foi fechado. Abra a extensão e clique em CLONAR E BAIXAR de novo, mantendo o popup aberto.';
+      }
+    }, STALL_MS);
   }
   function paint() { if (fill) { fill.style.width = cur + '%'; pctEl.textContent = Math.round(cur) + '%'; } }
   function show() {
-    ensure(); active = true; cur = 0; paint();
+    ensure(); active = true; cur = 0; mark = 0; paint();
     window.addEventListener('beforeunload', guard);
+    armWatchdog();
     clearInterval(creep);
-    creep = setInterval(() => { if (active && cur < 92) { cur = Math.min(92, cur + 0.4); paint(); } }, 400);
+    // Rastejo lento entre updates: mostra que está vivo mesmo num asset demorado.
+    // Nunca ultrapassa a última marca real + 4 pontos, senão a barra mente.
+    creep = setInterval(() => {
+      if (active && cur < mark + 4 && cur < 97) { cur = Math.min(mark + 4, cur + 0.25); paint(); }
+    }, 400);
   }
-  function step(pp, m) { if (typeof pp === 'number') { cur = Math.max(cur, Math.min(99, pp)); paint(); } if (m && msgEl) msgEl.textContent = m; }
-  function finish() { active = false; clearInterval(creep); cur = 100; paint(); if (msgEl) msgEl.textContent = 'Pronto! Preparando o download…'; setTimeout(hide, 900); }
-  function hide() { active = false; clearInterval(creep); window.removeEventListener('beforeunload', guard); if (host) { host.remove(); host = null; } }
-  return { show, step, finish, hide };
+  function step(pp, m) {
+    if (!active) return;             // já finalizou/interrompeu — ignora atrasados
+    armWatchdog();
+    if (typeof pp === 'number') { mark = Math.max(mark, pp); cur = Math.max(cur, Math.min(99, pp)); paint(); }
+    if (m && msgEl) msgEl.textContent = m;
+  }
+  function finish() {
+    active = false; clearInterval(creep); clearTimeout(watchdog); mark = cur = 100; paint();
+    if (msgEl) msgEl.textContent = 'Pronto! O download vai começar…';
+    setTimeout(hide, 1200);
+  }
+  // Esconde sem destruir o estado — usado durante os screenshots da aba
+  function mask(on) { if (host) host.toggleAttribute('data-wca-hidden', !!on); }
+  function hide() {
+    active = false; mark = cur = 0; clearInterval(creep); clearTimeout(watchdog);
+    window.removeEventListener('beforeunload', guard);
+    if (host) { host.remove(); host = null; }
+  }
+  return { show, step, finish, hide, mask };
 })();
