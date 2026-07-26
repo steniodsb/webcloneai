@@ -776,6 +776,18 @@ app.use('/landing',  express.static(path.join(SITE_ROOT, 'landing')));
 app.use('/members',  express.static(path.join(SITE_ROOT, 'members')));
 app.use('/admin',    express.static(path.join(SITE_ROOT, 'admin')));
 
+// Todos os domínios (apex, api., membros.) caem NESTE mesmo app, que roteia por
+// CAMINHO — não por host. Sem isto, abrir membros.webcloneai.com.br servia a
+// página de vendas, porque o caminho ali é "/".
+const MEMBERS_HOST = process.env.MEMBERS_HOST || 'membros.webcloneai.com.br';
+
+app.get('/', (req, res, next) => {
+  if (req.hostname === MEMBERS_HOST) {
+    return res.sendFile(path.join(SITE_ROOT, 'members/index.html'));
+  }
+  next();
+});
+
 app.get('/',                (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/index.html')));
 app.get('/admin',           (_req, res) => res.sendFile(path.join(SITE_ROOT, 'admin/index.html')));
 app.get('/lp',              (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/index.html')));
@@ -787,11 +799,17 @@ app.get('/redefinir-senha', (_req, res) => res.sendFile(path.join(SITE_ROOT, 'la
 
 let _extZip = null;
 
+const EXT_ROOT = path.join(SITE_ROOT, 'extension');
+
 async function buildExtensionZip() {
   if (_extZip) return _extZip;
-  const JSZip = require(path.join(SITE_ROOT, 'lib/jszip.min.js'));
+  const JSZip = require(path.join(EXT_ROOT, 'lib/jszip.min.js'));
   const zip = new JSZip();
 
+  // Zipa a pasta extension/ INTEIRA. Antes a lista de diretórios era escrita à
+  // mão aqui: bastava a extensão ganhar uma pasta nova para ela sumir do ZIP do
+  // cliente sem ninguém notar. Agora o que está na pasta é o que é entregue —
+  // e nada de fora dela pode entrar (site, api, .env).
   const addDir = (absDir, rel) => {
     for (const name of fs.readdirSync(absDir)) {
       const abs = path.join(absDir, name);
@@ -800,11 +818,7 @@ async function buildExtensionZip() {
       else zip.file(r, fs.readFileSync(abs));
     }
   };
-
-  zip.file('manifest.json', fs.readFileSync(path.join(SITE_ROOT, 'manifest.json')));
-  for (const dir of ['popup', 'content', 'background', 'lib', 'icons', 'fonts']) {
-    addDir(path.join(SITE_ROOT, dir), dir);
-  }
+  addDir(EXT_ROOT, '');
 
   _extZip = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 6 } });
   return _extZip;
@@ -831,4 +845,4 @@ if (require.main === module) {
 }
 
 // Exportado para teste (require direto não sobe o servidor)
-module.exports = { app, decidePaymentAccess, validarCPF, generatePassword };
+module.exports = { app, decidePaymentAccess, validarCPF, generatePassword, buildExtensionZip };
