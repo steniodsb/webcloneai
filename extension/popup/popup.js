@@ -235,6 +235,25 @@ class WebClonerAI {
     return chrome.tabs.sendMessage(this.tab.id, { action, ...extra }).catch(() => {});
   }
 
+  // Porta viva enquanto a clonagem roda. Fechar o popup mata a orquestração —
+  // a porta cai junto e a página avisa "Processo interrompido" na hora, em vez
+  // de deixar a barra congelada até o watchdog.
+  _openPort() {
+    try {
+      this._port = chrome.tabs.connect(this.tab.id, { name: 'wca-clone' });
+      this._port.onDisconnect.addListener(() => { this._port = null; });
+    } catch { this._port = null; }
+  }
+
+  _closePort(concluido) {
+    if (!this._port) return;
+    try {
+      if (concluido) this._port.postMessage({ done: true });
+      this._port.disconnect();
+    } catch {}
+    this._port = null;
+  }
+
   _renderFrameworkBadges(frameworks) {
     if (!frameworks.length) return;
     this.frameworkBadges.innerHTML = '';
@@ -288,6 +307,7 @@ class WebClonerAI {
       // Step 1: capturar página (HTML servido + lista completa de recursos)
       this._stepActive('dom');
       const pageData = await this._extractPage(tab.id);
+      this._openPort();   // a partir daqui, fechar o popup avisa a página
 
       // Base do mirror: o HTML COMO O SERVIDOR ENTREGA (os bundles JS bootam a
       // partir dele). Se não deu para buscar, cai no DOM renderizado.
@@ -375,12 +395,14 @@ class WebClonerAI {
       await chrome.downloads.download({ url, filename, saveAs: false });
       this._stepDone('download');
 
+      this._closePort(true);
       this._overlay('CLONE_DONE');
       this._showStatus(`✓ ${filename} salvo com sucesso!`, 'ok');
 
     } catch (err) {
       console.error('[WCA]', err);
-      this._overlay('CLONE_HIDE');
+      this._closePort(true);   // o erro já explica; não é "popup fechado"
+      this._overlay('CLONE_FAIL', { reason: err.message });
       this._showStatus(err.message, 'err');
     } finally {
       this._endRun();
@@ -388,6 +410,7 @@ class WebClonerAI {
   }
 
   _endRun() {
+    this._closePort(true);
     this._running = false;
     setBtnBusy(this.exportBtn, false, 'CLONAR E BAIXAR');
   }

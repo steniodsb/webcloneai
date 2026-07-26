@@ -18,6 +18,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'CLONE_PROGRESS') { _cloneOverlay.step(message.percent, message.message); return false; }
   if (message.action === 'CLONE_DONE')     { _cloneOverlay.finish(); return false; }
   if (message.action === 'CLONE_HIDE')     { _cloneOverlay.hide(); return false; }
+  if (message.action === 'CLONE_FAIL')     { _cloneOverlay.fail(message.reason); return false; }
   // Some da frente enquanto o popup fotografa a aba (senão o overlay aparece
   // em cima de todos os screenshots).
   if (message.action === 'CLONE_MASK')     { _cloneOverlay.mask(!!message.on); sendResponse({ ok: true }); return false; }
@@ -744,6 +745,11 @@ const _cloneOverlay = (() => {
       '.cancel{margin-top:14px;background:none;border:none;color:rgba(255,255,255,.42);font-size:12px;font-family:inherit;cursor:pointer;padding:6px;text-decoration:underline;text-underline-offset:3px}',
       '.cancel:hover{color:rgba(255,255,255,.75)}',
       '.warn.stalled{background:rgba(255,90,90,.08);border-color:rgba(255,90,90,.3);color:#ff9b9b}',
+      // Estado "processo interrompido": tira o movimento e apaga a cor, para
+      // não parecer que ainda está trabalhando.
+      '.spin.stopped{animation:none;background:conic-gradient(from 0deg,rgba(255,255,255,.12) 0 100%)}',
+      '.pct.stopped{background:none;-webkit-text-fill-color:rgba(255,255,255,.32);color:rgba(255,255,255,.32)}',
+      '.fill.stopped{background:rgba(255,120,120,.55)}',
       '@media (prefers-reduced-motion: reduce){.spin{animation:none}}',
       '</style>',
       '<div class="ov"><div class="card">',
@@ -766,21 +772,35 @@ const _cloneOverlay = (() => {
     root.querySelector('.cancel').addEventListener('click', hide);
   }
 
-  // Se o popup for fechado no meio, ninguém mais manda progresso e o overlay
-  // ficaria travado na tela (com o beforeunload prendendo a aba). Este watchdog
-  // solta tudo e explica o que houve.
+  // Processo interrompido: para tudo, solta a aba e explica o que fazer.
+  // Sem isto o usuário ficava olhando uma barra parada, sem saber que morreu.
+  function fail(motivo) {
+    if (!host || !active) return;
+    active = false;
+    clearInterval(creep);
+    clearTimeout(watchdog);
+    window.removeEventListener('beforeunload', guard);
+
+    const spin = root.querySelector('.spin');
+    if (spin) spin.className = 'spin stopped';
+    const ttl = root.querySelector('.ttl');
+    if (ttl) ttl.textContent = 'Processo interrompido';
+    if (fill)  fill.className = 'fill stopped';
+    if (pctEl) pctEl.className = 'pct stopped';
+    if (msgEl) msgEl.textContent = motivo || 'A clonagem não foi concluída.';
+    if (warnEl) {
+      warnEl.className = 'warn stalled';
+      warnEl.textContent = 'Nenhum arquivo foi baixado. Abra a extensão e clique em CLONAR E BAIXAR de novo — deixe o popup aberto e não troque de aba até terminar.';
+    }
+    const btn = root.querySelector('.cancel');
+    if (btn) btn.textContent = 'Fechar';
+  }
+
+  // Rede de segurança: se por algum motivo pararem de chegar atualizações sem
+  // que a porta caia (travamento, sono da máquina), o watchdog assume o pior.
   function armWatchdog() {
     clearTimeout(watchdog);
-    watchdog = setTimeout(() => {
-      if (!active) return;
-      active = false; clearInterval(creep);
-      window.removeEventListener('beforeunload', guard);
-      if (msgEl) msgEl.textContent = 'Clonagem interrompida.';
-      if (warnEl) {
-        warnEl.className = 'warn stalled';
-        warnEl.textContent = 'A clonagem parou — o popup da extensão provavelmente foi fechado. Abra a extensão e clique em CLONAR E BAIXAR de novo, mantendo o popup aberto.';
-      }
-    }, STALL_MS);
+    watchdog = setTimeout(() => fail('A clonagem parou de responder.'), STALL_MS);
   }
   function paint() { if (fill) { fill.style.width = cur + '%'; pctEl.textContent = Math.round(cur) + '%'; } }
   function show() {
@@ -812,5 +832,17 @@ const _cloneOverlay = (() => {
     window.removeEventListener('beforeunload', guard);
     if (host) { host.remove(); host = null; }
   }
-  return { show, step, finish, hide, mask };
+  return { show, step, finish, hide, mask, fail };
 })();
+
+// O popup é quem orquestra a clonagem: se ele fechar, o processo morre na hora.
+// Esta porta existe só para perceber isso — quando o popup some, o onDisconnect
+// dispara imediatamente, em vez de o usuário ficar olhando uma barra parada.
+chrome.runtime.onConnect.addListener(port => {
+  if (port.name !== 'wca-clone') return;
+  let concluido = false;
+  port.onMessage.addListener(m => { if (m && m.done) concluido = true; });
+  port.onDisconnect.addListener(() => {
+    if (!concluido) _cloneOverlay.fail('O popup da extensão foi fechado antes de terminar.');
+  });
+});

@@ -88,20 +88,10 @@ nav .links a:hover{color:#fff}
 .dot{width:5px;height:5px;border-radius:50%;background:var(--s3);box-shadow:0 0 8px var(--s3)}
 
 /* cards angulados flutuando (como o original) */
-.fcards{position:absolute;inset:0;z-index:2;pointer-events:none}
-.fc{position:absolute;width:158px;border-radius:15px;overflow:hidden;background:var(--glass);border:1px solid rgba(255,255,255,.14);box-shadow:0 26px 60px rgba(0,0,0,.72);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);animation:float 7s ease-in-out infinite}
-.fc .im{aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 40% 30%,rgba(214,220,228,.16),transparent 65%)}
-.fc .im img{width:56%;opacity:.9}
-.fc .lb{padding:9px 12px;font-size:11.5px;color:var(--s2);border-top:1px solid var(--line);background:rgba(0,0,0,.35)}
-.fc.p1{top:10%;left:5%;transform:rotate(-9deg);animation-delay:0s}
-.fc.p2{top:46%;left:1.5%;transform:rotate(7deg);width:126px;animation-delay:1.5s}
-.fc.p3{top:12%;right:5%;transform:rotate(8deg);width:134px;animation-delay:.8s}
-.fc.p4{top:44%;right:2%;transform:rotate(-7deg);animation-delay:2.2s}
-@media(max-width:1150px){.fcards{display:none}}
 
 /* mockup em perspectiva */
 .stage{position:relative;z-index:3;margin-top:64px;perspective:1500px}
-.mock{transform:rotateX(9deg);transform-origin:top center;border-radius:18px 18px 0 0;overflow:hidden;border:1px solid rgba(255,255,255,.12);border-bottom:0;box-shadow:0 -1px 0 rgba(255,255,255,.16) inset,0 50px 100px rgba(0,0,0,.8);background:var(--panel);max-width:1080px;margin:0 auto}
+.mock{transform:rotateX(var(--tilt,9deg));transform-origin:top center;will-change:transform;border-radius:18px 18px 0 0;overflow:hidden;border:1px solid rgba(255,255,255,.12);border-bottom:0;box-shadow:0 -1px 0 rgba(255,255,255,.16) inset,0 50px 100px rgba(0,0,0,.8);background:var(--panel);max-width:1080px;margin:0 auto}
 .mock .bar{display:flex;align-items:center;gap:7px;padding:12px 16px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.02)}
 .mock .bar i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.16);display:block}
 .mock .bar .u{margin-left:12px;flex:1;height:22px;border-radius:6px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
@@ -117,6 +107,20 @@ nav .links a:hover{color:#fff}
 .imgic{width:62px;height:62px;border-radius:17px;display:flex;align-items:center;justify-content:center;color:var(--s3);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);animation:float 5s ease-in-out infinite}
 .imgic svg{width:27px;height:27px}
 .mock .ph{border:0;border-radius:0;aspect-ratio:16/8.4}
+
+/* ---- VÍDEO DE DEMONSTRAÇÃO ---- */
+/* preload="none": o mp4 só é baixado no clique, então o topo da página não
+   carrega vídeo nenhum — o que aparece de imediato é o poster (39 KB). */
+.vid{position:relative;aspect-ratio:16/9;background:#0a0b0e;overflow:hidden}
+.vid video{width:100%;height:100%;display:block;object-fit:cover}
+.vid-play{position:absolute;inset:0;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+ background:linear-gradient(180deg,rgba(10,11,14,.28),rgba(10,11,14,.62));border:0;cursor:pointer;font-family:inherit;
+ transition:background .3s,opacity .3s}
+.vid-play:hover{background:linear-gradient(180deg,rgba(10,11,14,.16),rgba(10,11,14,.5))}
+.vid-play:focus-visible{outline:2px solid var(--s2);outline-offset:-4px}
+.vid-lbl{font-size:13px;color:#fff;letter-spacing:.2px;text-shadow:0 1px 10px rgba(0,0,0,.6)}
+.vid.playing .vid-play{opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.vid-play .play{animation:none}}
 
 /* ---- MARQUEE ---- */
 .mq{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
@@ -278,12 +282,6 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
 <header class="hero" id="top">
   <div class="glow a" id="g1"></div><div class="glow b"></div><div class="glow c"></div>
   <div class="beam"></div>
-  <div class="fcards" id="fl">
-    <div class="fc p1"><div class="im"><img src="/landing/img/webcloner-icon.png" alt=""></div><div class="lb">index.html</div></div>
-    <div class="fc p2"><div class="im"><img src="/landing/img/webcloner-icon.png" alt=""></div><div class="lb">styles.css</div></div>
-    <div class="fc p3"><div class="im"><img src="/landing/img/webcloner-icon.png" alt=""></div><div class="lb">assets/</div></div>
-    <div class="fc p4"><div class="im"><img src="/landing/img/webcloner-icon.png" alt=""></div><div class="lb">clone-data.json</div></div>
-  </div>
   <div class="wrap center">
     <span class="eye rv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18V9M9 18V5M14 18v-6M19 18v-9"/></svg> Extensão Chrome · Processamento local</span>
     <h1 class="rv" data-d="1">Copie qualquer site em <span class="grad">2 cliques</span> e edite <span class="grad">do seu jeito</span></h1>
@@ -297,8 +295,16 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
   <!-- mockup em perspectiva -->
   <div class="stage wrap rv" id="demo">
     <div class="mock">
-      <div class="bar"><i></i><i></i><i></i><div class="u"></div></div>
-      <div class="ph"><div class="play"><svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div><div class="lbl">Vídeo de demonstração</div><div class="tag">PLACEHOLDER — trocar pelo .mp4 da extensão capturando um site</div></div>
+      <!-- sem a .bar falsa: o vídeo é uma gravação de tela e já traz a barra
+           real do navegador — duas empilhadas ficavam parecendo erro -->
+      <div class="vid" id="demoVid">
+        <video id="demoPlayer" poster="/landing/video/demo-poster.webp" preload="none" playsinline
+               controlslist="nodownload" src="/landing/video/demo.mp4"></video>
+        <button class="vid-play" id="demoPlay" type="button" aria-label="Reproduzir o vídeo de demonstração">
+          <span class="play"><svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></span>
+          <span class="vid-lbl">Ver a demonstração · 1min18</span>
+        </button>
+      </div>
     </div>
   </div>
 </header>
@@ -478,14 +484,53 @@ function shot(s){
 document.getElementById('shots').innerHTML=(SHOTS.map(shot).join('')).repeat(2);
 /* autoplay via innerHTML nem sempre dispara: força o play (silencioso) */
 document.querySelectorAll('#shots video').forEach(function(v){v.muted=true;v.playsInline=true;var p=v.play();if(p&&p.catch)p.catch(function(){});});
+
+/* O mockup nasce inclinado (rotateX 9deg) e vai ficando RETO conforme a pessoa
+   rola — quando o vídeo está enquadrado na tela, está a 0deg e dá pra assistir
+   sem distorção. Preso ao scroll, não é animação por tempo. */
+(function(){
+ var mock=document.querySelector('.stage .mock');
+ if(!mock) return;
+ if(matchMedia('(prefers-reduced-motion:reduce)').matches){ mock.style.setProperty('--tilt','0deg'); return; }
+ var MAX=9, agendado=false;
+ function atualiza(){
+   agendado=false;
+   var r=mock.getBoundingClientRect();
+   /* 0 = mockup entrando por baixo (inclinado) · 1 = subiu o bastante (reto) */
+   var p=1-(r.top/(innerHeight*0.62));
+   p=p<0?0:p>1?1:p;
+   mock.style.setProperty('--tilt',(MAX*(1-p)).toFixed(2)+'deg');
+ }
+ function agenda(){ if(!agendado){ agendado=true; requestAnimationFrame(atualiza); } }
+ addEventListener('scroll',agenda,{passive:true});
+ addEventListener('resize',agenda,{passive:true});
+ atualiza();
+})();
+
+/* Vídeo de demonstração: o mp4 só baixa no clique (preload="none").
+   Tem narração, então nada de autoplay — o usuário decide quando ouvir. */
+(function(){
+ var wrap=document.getElementById('demoVid'), v=document.getElementById('demoPlayer'), b=document.getElementById('demoPlay');
+ if(!wrap||!v||!b) return;
+ b.addEventListener('click',function(){
+   wrap.classList.add('playing');
+   v.controls=true;
+   var p=v.play(); if(p&&p.catch) p.catch(function(){ v.controls=true; });
+ });
+ /* voltou ao fim ou foi pausado no início: devolve a capa */
+ v.addEventListener('ended',function(){ wrap.classList.remove('playing'); v.controls=false; v.currentTime=0; });
+ /* o botão "Ver a demo" do topo rola até aqui e já inicia */
+ document.querySelectorAll('a[href="#demo"]').forEach(function(a){
+   a.addEventListener('click',function(){ setTimeout(function(){ if(!wrap.classList.contains('playing')) b.click(); }, 700); });
+ });
+})();
 var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.1,rootMargin:'0px 0px -60px 0px'});
 document.querySelectorAll('.rv').forEach(function(e){io.observe(e)});
 var nav=document.getElementById('nav');addEventListener('scroll',function(){nav.classList.toggle('scr',scrollY>20)},{passive:true});
-var g1=document.getElementById('g1'),fl=document.getElementById('fl');
-var R=[-9,7,8,-7];
+var g1=document.getElementById('g1');
 addEventListener('mousemove',function(e){var x=(e.clientX/innerWidth-.5),y=(e.clientY/innerHeight-.5);
 g1.style.transform='translateX(-50%) translate('+(x*42)+'px,'+(y*26)+'px)';
-if(fl)[].forEach.call(fl.children,function(im,i){var k=(i%2?-1:1)*(14+i*5);im.style.transform='rotate('+R[i]+'deg) translate('+(x*k)+'px,'+(y*k)+'px)'})},{passive:true});
+},{passive:true});
 </script>
 </body>
 </html>
