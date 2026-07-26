@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Web Clone AI",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "Clone qualquer site em segundos — mirror completo (HTML, JS, CSS, fontes e assets) pronto para rodar localmente.",
   "permissions": [
     "activeTab",

@@ -1292,6 +1292,11 @@ claude .
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Selo de versão lido do manifest — serve de sinal visual de que o reload da
+  // extensão pegou (já aconteceu de o Chrome servir uma cópia antiga).
+  const vt = document.getElementById('versionTag');
+  if (vt) { try { vt.textContent = 'V' + chrome.runtime.getManifest().version; } catch {} }
+
   initLoginScreen();
   initNoSubScreen();
   boot();
