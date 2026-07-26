@@ -20,21 +20,42 @@
 
       <div id="loginError" class="auth-msg auth-msg-err hidden"></div>
 
-      <div class="field-group">
-        <label class="field-label" for="loginEmail">E-mail</label>
-        <input type="email" id="loginEmail" class="field-input"
-               placeholder="seu@email.com" autocomplete="email">
-      </div>
+      <div class="auth-card">
+        <div class="field-group">
+          <label class="field-label" for="loginEmail">E-mail</label>
+          <input type="email" id="loginEmail" class="field-input"
+                 placeholder="seu@email.com" autocomplete="email" spellcheck="false">
+        </div>
 
-      <div class="field-group">
-        <label class="field-label" for="loginPassword">Senha</label>
-        <input type="password" id="loginPassword" class="field-input"
-               placeholder="••••••••" autocomplete="current-password">
+        <div class="field-group">
+          <label class="field-label" for="loginPassword">Senha</label>
+          <div class="field-wrap">
+            <input type="password" id="loginPassword" class="field-input has-action"
+                   placeholder="••••••••" autocomplete="current-password" spellcheck="false">
+            <button type="button" id="togglePwd" class="field-action"
+                    title="Mostrar senha" aria-label="Mostrar senha">
+              <svg id="eyeOpen" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg id="eyeOff" class="hidden" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/>
+                <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>
+              </svg>
+            </button>
+          </div>
+          <div class="field-hint">A senha chega no e-mail assim que o pagamento é confirmado.</div>
+        </div>
       </div>
 
       <div class="bw" id="loginBw">
-        <div class="bspin"></div>
-        <button id="loginBtn" class="export-btn">ENTRAR</button>
+        <button id="loginBtn" class="export-btn" type="button">
+          <span class="cta-inner">
+            <span class="btn-spinner" aria-hidden="true"></span>
+            <span id="loginLabel">ENTRAR</span>
+          </span>
+        </button>
       </div>
 
       <div class="auth-footer">
@@ -58,8 +79,9 @@
       <div class="nosub-title">Sem assinatura ativa</div>
       <div class="nosub-desc">Sua conta não possui uma assinatura ativa ou foi cancelada. Adquira o acesso para usar a extensão.</div>
       <div class="bw">
-        <div class="bspin"></div>
-        <button id="buyBtn" class="export-btn">ADQUIRIR ACESSO</button>
+        <button id="buyBtn" class="export-btn" type="button">
+          <span class="cta-inner">ADQUIRIR ACESSO</span>
+        </button>
       </div>
       <button id="logoutNoSub" class="ghost-btn">Sair da conta</button>
     </div>
@@ -189,8 +211,9 @@
 
       <!-- Export button -->
       <div class="bw" id="exportBw">
-        <div class="bspin"></div>
-        <button id="exportBtn" class="export-btn">
+        <button id="exportBtn" class="export-btn" type="button">
+          <span class="cta-inner">
+          <span class="btn-spinner" aria-hidden="true"></span>
           <svg id="exportIcon" width="14" height="14" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -198,6 +221,7 @@
             <line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
           <span id="exportLabel">CLONAR E BAIXAR</span>
+          </span>
         </button>
       </div>
 

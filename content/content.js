@@ -6,11 +6,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
   if (message.action === 'EXTRACT_PAGE') {
+    _cloneOverlay.show();
     extractPage()
-      .then(data => sendResponse({ ok: true, data }))
-      .catch(err => sendResponse({ ok: false, error: err.message }));
+      .then(data => { _cloneOverlay.finish(); sendResponse({ ok: true, data }); })
+      .catch(err => { _cloneOverlay.hide(); sendResponse({ ok: false, error: err.message }); });
     return true;
   }
+  if (message.action === 'CLONE_PROGRESS') { _cloneOverlay.step(message.percent, message.message); return false; }
+  if (message.action === 'CLONE_DONE')     { _cloneOverlay.finish(); return false; }
+  if (message.action === 'CLONE_HIDE')     { _cloneOverlay.hide(); return false; }
   if (message.action === 'SCROLL_INFO') {
     sendResponse({
       ok: true,
@@ -197,6 +201,7 @@ async function extractPage() {
   // 0. Estabilizar a página ANTES de capturar: rola tudo para disparar lazy-load
   //    de imagens e revelar animações on-scroll (AOS/GSAP), depois espera as
   //    imagens decodificarem. Sem isso, o DOM sai com placeholders e seções ocultas.
+  _cloneOverlay.step(6, 'Escaneando e estabilizando a página…');
   await settlePage();
 
   // Snapshot fiel do DOM renderizado (JS neutralizado) — fallback visual estático
@@ -208,7 +213,9 @@ async function extractPage() {
 
   // TODOS os recursos que a página realmente carregou (JS, CSS, fontes, imagens,
   // mídia, XHR/fetch) via Resource Timing + varredura do DOM.
+  _cloneOverlay.step(38, 'Copiando a estrutura da página…');
   const resources = collectResources(base);
+  _cloneOverlay.step(64, 'Mapeando ' + resources.length + ' recursos (JS, CSS, fontes)…');
 
   // External stylesheet URLs
   const sheetUrls = [];
@@ -236,6 +243,7 @@ async function extractPage() {
 
   // Mídias (vídeos, áudios, embeds)
   const media = collectMedia(imageSet, base);
+  _cloneOverlay.step(82, 'Copiando ' + imageSet.size + ' imagens e mídias…');
 
   // Design specs computados, SVGs inline, SEO e responsividade
   const designSpec = extractDesignSpec();
@@ -243,6 +251,7 @@ async function extractPage() {
   const seo = extractSeo();
   const responsive = extractResponsive();
 
+  _cloneOverlay.step(94, 'Extraindo estilos, SVGs e SEO…');
   const meta = {
     title: document.title || 'Projeto Exportado',
     description: document.querySelector('meta[name="description"]')?.content || '',
@@ -691,3 +700,54 @@ function collectImageUrls(set, base) {
   const og = document.querySelector('meta[property="og:image"][content]');
   if (og) add(og.content);
 }
+
+
+// ── Overlay central de clonagem (Shadow DOM — isolado do CSS da página) ───────
+const _cloneOverlay = (() => {
+  let host, root, fill, pctEl, msgEl, creep, cur = 0, active = false;
+  function guard(e) { e.preventDefault(); e.returnValue = ''; return ''; }
+  function ensure() {
+    if (host) return;
+    host = document.createElement('div');
+    host.id = '__wca_clone_overlay';
+    root = host.attachShadow({ mode: 'open' });
+    root.innerHTML = [
+      '<style>',
+      ':host{all:initial}',
+      '.ov{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:rgba(6,7,9,.72);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;animation:wcaFade .3s ease}',
+      '@keyframes wcaFade{from{opacity:0}to{opacity:1}}',
+      '.card{width:min(420px,90vw);background:linear-gradient(180deg,#0e1015,#0a0c10);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:34px 32px;color:#fff;box-shadow:0 30px 80px rgba(0,0,0,.6);text-align:center}',
+      '.spin{width:64px;height:64px;margin:0 auto 20px;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 22%,#8a94a6,#eef1f5,transparent 80%);animation:wcaRot 1s linear infinite;-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 0);mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 0)}',
+      '@keyframes wcaRot{to{transform:rotate(360deg)}}',
+      '.ttl{font-size:18px;font-weight:700;letter-spacing:-.3px;margin:0}',
+      '.pct{font-size:40px;font-weight:700;letter-spacing:-1px;margin:8px 0 2px;background:linear-gradient(100deg,#8a94a6,#fff 55%,#c0c5ce);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}',
+      '.bar{height:7px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin:14px 0 12px}',
+      '.fill{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#8a94a6,#eef1f5);transition:width .4s cubic-bezier(.3,.7,.3,1)}',
+      '.msg{font-size:13.5px;color:rgba(255,255,255,.66);min-height:18px}',
+      '.warn{margin-top:22px;padding:12px 14px;border-radius:12px;font-size:12.5px;line-height:1.5;background:rgba(232,180,90,.08);border:1px solid rgba(232,180,90,.28);color:#e8c07a}',
+      '@media (prefers-reduced-motion: reduce){.spin{animation:none}}',
+      '</style>',
+      '<div class="ov"><div class="card">',
+      '<div class="spin"></div>',
+      '<div class="ttl">Clonando o site</div>',
+      '<div class="pct">0%</div>',
+      '<div class="bar"><div class="fill"></div></div>',
+      '<div class="msg">Preparando…</div>',
+      '<div class="warn">⚠️ Não feche nem saia desta aba até a clonagem terminar — isso interrompe a cópia do site.</div>',
+      '</div></div>'
+    ].join('');
+    (document.body || document.documentElement).appendChild(host);
+    fill = root.querySelector('.fill'); pctEl = root.querySelector('.pct'); msgEl = root.querySelector('.msg');
+  }
+  function paint() { if (fill) { fill.style.width = cur + '%'; pctEl.textContent = Math.round(cur) + '%'; } }
+  function show() {
+    ensure(); active = true; cur = 0; paint();
+    window.addEventListener('beforeunload', guard);
+    clearInterval(creep);
+    creep = setInterval(() => { if (active && cur < 92) { cur = Math.min(92, cur + 0.4); paint(); } }, 400);
+  }
+  function step(pp, m) { if (typeof pp === 'number') { cur = Math.max(cur, Math.min(99, pp)); paint(); } if (m && msgEl) msgEl.textContent = m; }
+  function finish() { active = false; clearInterval(creep); cur = 100; paint(); if (msgEl) msgEl.textContent = 'Pronto! Preparando o download…'; setTimeout(hide, 900); }
+  function hide() { active = false; clearInterval(creep); window.removeEventListener('beforeunload', guard); if (host) { host.remove(); host = null; } }
+  return { show, step, finish, hide };
+})();

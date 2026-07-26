@@ -231,75 +231,168 @@ header {
   box-shadow: 0 0 7px rgba(255,255,255,0.45), 0 1px 4px rgba(0,0,0,0.22);
 }
 
-/* ─── BEAM BUTTON EXPORT ─── */
-.bw {
-  position: relative;
-  display: flex;
-  border-radius: 12px;
-  padding: 1.5px;
-  overflow: hidden;
-  margin: 10px 12px 0;
-  transition: transform .14s ease;
-}
-.bw:has(.export-btn:not(:disabled)):hover  { transform: translateY(-1px); }
-.bw:has(.export-btn:not(:disabled)):active { transform: scale(.985); }
+/* ─── BOTÃO PRATEADO — mesmo CTA da landing (borda cônica girando) ─── */
+@property --gradient-angle        { syntax: "<angle>";      initial-value: 0deg;    inherits: false }
+@property --gradient-angle-offset { syntax: "<angle>";      initial-value: 0deg;    inherits: false }
+@property --gradient-percent      { syntax: "<percentage>"; initial-value: 5%;      inherits: false }
+@property --gradient-shine        { syntax: "<color>";      initial-value: #ffffff; inherits: false }
 
-.bspin {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 200%; height: 200%;
-  transform: translate(-50%,-50%) rotate(0deg);
-  background: conic-gradient(
-    from 0deg,
-    transparent 40%,
-    rgba(210,210,210,.50) 46%,
-    rgba(255,255,255,.92) 50%,
-    rgba(210,210,210,.50) 54%,
-    transparent 60%
-  );
-  animation: bspin 3s linear infinite;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.bw:hover .bspin { animation-duration: .42s; }
-
-@keyframes bspin {
-  to { transform: translate(-50%,-50%) rotate(360deg); }
-}
+/* Wrapper — só posiciona/espaça. O brilho agora vive na borda do próprio botão. */
+.bw { display: block; margin: 10px 12px 0; }
 
 .export-btn {
+  --cta-bg:               #0a0b0e;
+  --cta-bg-subtle:        #15171d;
+  --cta-highlight:        #c0c5ce;
+  --cta-highlight-subtle: #eef1f5;
+  --animation:  gradient-angle linear infinite;
+  --duration:   3s;
+  --shadow-size: 2px;
+  --transition: 800ms cubic-bezier(.25,1,.5,1);
+
+  isolation: isolate;
   position: relative;
-  z-index: 1;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   width: 100%;
-  padding: 13px 16px;
-  border-radius: 10.5px;
-  background: #FFFFFF;
-  color: #080808;
+  min-height: 44px;
+  padding: 13px 18px;
   font-family: 'DM Sans', sans-serif;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.8px;
-  border: none;
+  line-height: 1.2;
+  color: #fff;
   cursor: pointer;
-  transition: filter 0.18s, transform 0.12s;
+  border: 1px solid transparent;
+  border-radius: 100px;
+  /* fundo escuro no padding-box + luz prateada girando no border-box */
+  background:
+    linear-gradient(var(--cta-bg), var(--cta-bg)) padding-box,
+    conic-gradient(from calc(var(--gradient-angle) - var(--gradient-angle-offset)), transparent,
+      var(--cta-highlight) var(--gradient-percent),
+      var(--gradient-shine) calc(var(--gradient-percent) * 2),
+      var(--cta-highlight) calc(var(--gradient-percent) * 3),
+      transparent            calc(var(--gradient-percent) * 4)) border-box;
+  box-shadow: inset 0 0 0 1px var(--cta-bg-subtle);
+  transition: var(--transition);
+  transition-property: --gradient-angle-offset, --gradient-percent, --gradient-shine;
 }
 
-.export-btn:hover:not(:disabled) {
-  filter: brightness(0.94);
+.export-btn::before,
+.export-btn::after,
+.cta-inner::before {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-start: 50%;
+  translate: -50% -50%;
+  z-index: -1;
 }
 
-.export-btn:active:not(:disabled) {
-  filter: brightness(0.88);
+/* Pontilhado prateado que acompanha o ângulo da luz */
+.export-btn::before {
+  --size: calc(100% - var(--shadow-size) * 3);
+  --position: 2px;
+  --space: calc(var(--position) * 2);
+  width: var(--size);
+  height: var(--size);
+  background: radial-gradient(circle at var(--position) var(--position), #fff calc(var(--position) / 4), transparent 0) padding-box;
+  background-size: var(--space) var(--space);
+  background-repeat: space;
+  -webkit-mask-image: conic-gradient(from calc(var(--gradient-angle) + 45deg), black, transparent 10% 90%, black);
+          mask-image: conic-gradient(from calc(var(--gradient-angle) + 45deg), black, transparent 10% 90%, black);
+  border-radius: inherit;
+  opacity: .4;
 }
 
+/* Shimmer que varre o corpo do botão */
+.export-btn::after {
+  --animation: shimmer linear infinite;
+  width: 100%;
+  aspect-ratio: 1;
+  background: linear-gradient(-50deg, transparent, var(--cta-highlight), transparent);
+  -webkit-mask-image: radial-gradient(circle at bottom, transparent 40%, black);
+          mask-image: radial-gradient(circle at bottom, transparent 40%, black);
+  opacity: .6;
+}
+
+/* Conteúdo (spinner + ícone + rótulo) acima dos pseudo-elementos */
+.cta-inner {
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.cta-inner::before {
+  --size: calc(100% + 1rem);
+  width: var(--size);
+  height: var(--size);
+  box-shadow: inset 0 -1ex 2rem 4px var(--cta-highlight);
+  opacity: 0;
+  transition: opacity var(--transition);
+  animation: calc(var(--duration) * 1.5) breathe linear infinite;
+}
+
+.export-btn,
+.export-btn::before,
+.export-btn::after {
+  animation: var(--animation) var(--duration),
+             var(--animation) calc(var(--duration) / .4) reverse paused;
+  animation-composition: add;
+}
+
+.export-btn:is(:hover, :focus-visible):not(:disabled) {
+  --gradient-percent: 20%;
+  --gradient-angle-offset: 95deg;
+  --gradient-shine: var(--cta-highlight-subtle);
+}
+.export-btn:is(:hover, :focus-visible):not(:disabled),
+.export-btn:is(:hover, :focus-visible):not(:disabled)::before,
+.export-btn:is(:hover, :focus-visible):not(:disabled)::after { animation-play-state: running; }
+.export-btn:is(:hover, :focus-visible):not(:disabled) .cta-inner::before { opacity: 1; }
+
+.export-btn:active:not(:disabled) { translate: 0 1px; }
+.export-btn:focus-visible { outline: 2px solid rgba(255,255,255,.55); outline-offset: 3px; }
+
+/* Desabilitado: apaga o texto e recolhe a luz — nada de facho piscando */
 .export-btn:disabled {
-  opacity: 0.35;
+  color: rgba(255,255,255,.40);
   cursor: not-allowed;
+  --gradient-percent: 3%;
+}
+.export-btn:disabled::after { opacity: .18; }
+
+/* Trabalhando: mesma luz, só que mais rápida */
+.export-btn.is-busy { cursor: progress; color: rgba(255,255,255,.92); --duration: 1.1s; }
+
+/* Spinner do botão — anel prateado */
+.btn-spinner {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.20);
+  border-top-color: rgba(255,255,255,.88);
+  animation: btnspin .62s linear infinite;
+}
+
+.export-btn:not(.is-busy) .btn-spinner { display: none; }
+.export-btn.is-busy #exportIcon { display: none; }   /* spinner ocupa o lugar do ícone */
+
+@keyframes gradient-angle { to { --gradient-angle: 360deg; } }
+@keyframes shimmer        { to { rotate: 360deg; } }
+@keyframes breathe        { from, to { scale: 1 } 50% { scale: 1.2 } }
+@keyframes btnspin        { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .export-btn, .export-btn::before, .export-btn::after, .cta-inner::before { animation: none; }
+  .btn-spinner { animation-duration: 2s; }
 }
 
 /* ─── PROGRESS STEPS ─── */
@@ -390,11 +483,55 @@ header {
   border: 1px solid rgba(100,200,100,0.15);
 }
 
+/* Card dos campos — mesmo vidro dos toggles da tela principal */
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 13px;
+  background: var(--glass);
+  border: 1px solid var(--gbrd);
+  border-radius: 13px;
+  box-shadow: inset 0 1px 0 var(--gtop);
+}
+
 /* Fields */
 .field-group {
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+
+.field-wrap { position: relative; display: flex; }
+
+.field-input.has-action { padding-right: 38px; }
+
+.field-action {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 7px;
+  color: var(--t3);
+  cursor: pointer;
+  transition: color 0.14s, background 0.14s;
+}
+
+.field-action:hover { color: var(--t1); background: var(--ghi); }
+.field-action:focus-visible { outline: 1px solid rgba(255,255,255,0.4); outline-offset: -1px; }
+
+.field-hint {
+  font-size: 10px;
+  color: var(--t3);
+  line-height: 1.45;
+  margin-top: 1px;
 }
 
 .field-label {

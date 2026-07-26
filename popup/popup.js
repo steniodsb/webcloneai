@@ -20,6 +20,16 @@ function setLoginError(msg) {
   el.classList.toggle('hidden', !msg);
 }
 
+// Estado de carregando dos botões: mexe em classe/label, nunca no textContent do
+// botão (isso apagava o ícone e o spinner que vivem dentro dele).
+function setBtnBusy(btn, busy, label) {
+  if (!btn) return;
+  btn.disabled = busy;
+  btn.classList.toggle('is-busy', busy);
+  const el = btn.querySelector('#loginLabel, #exportLabel');
+  if (el && label) el.textContent = label;
+}
+
 // ─── Auth boot ───────────────────────────────────────────────────────────────
 
 async function boot() {
@@ -78,8 +88,7 @@ function initLoginScreen() {
       setLoginError('Preencha e-mail e senha.');
       return;
     }
-    loginBtn.disabled = true;
-    loginBtn.textContent = 'ENTRANDO...';
+    setBtnBusy(loginBtn, true, 'ENTRANDO...');
     setLoginError('');
     try {
       const session = await WCA_Auth.signIn(email, password);
@@ -101,14 +110,26 @@ function initLoginScreen() {
         : (err.message || 'Erro ao fazer login.');
       setLoginError(msg);
     } finally {
-      loginBtn.disabled = false;
-      loginBtn.textContent = 'ENTRAR';
+      setBtnBusy(loginBtn, false, 'ENTRAR');
     }
   }
 
   loginBtn.addEventListener('click', doLogin);
   pwdInp.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
   emailInp.addEventListener('keydown', e => { if (e.key === 'Enter') pwdInp.focus(); });
+
+  // Mostrar/ocultar senha — a senha enviada por e-mail tem 12 chars aleatórios
+  const togglePwd = document.getElementById('togglePwd');
+  togglePwd?.addEventListener('click', () => {
+    const show = pwdInp.type === 'password';
+    pwdInp.type = show ? 'text' : 'password';
+    document.getElementById('eyeOpen')?.classList.toggle('hidden', show);
+    document.getElementById('eyeOff')?.classList.toggle('hidden', !show);
+    togglePwd.title = togglePwd.ariaLabel = show ? 'Ocultar senha' : 'Mostrar senha';
+    pwdInp.focus();
+  });
+
+  emailInp.focus();
 
   buyLink.addEventListener('click', e => {
     e.preventDefault();
@@ -215,14 +236,23 @@ class WebClonerAI {
   }
 
   async _run() {
-    const session = await WCA_Auth.getSession();
-    if (!session) { showScreen('loginScreen'); return; }
-    const sub = await WCA_Auth.checkSubscription(session.userId, session.accessToken);
-    if (sub.status !== 'active') { showScreen('noSubScreen'); return; }
+    // A revalidação de assinatura é uma ida à rede — sem esta trava, dois cliques
+    // rápidos disparavam duas clonagens ao mesmo tempo.
+    if (this._running) return;
+    this._running = true;
+    setBtnBusy(this.exportBtn, true, 'VERIFICANDO...');
 
-    this.exportBtn.disabled = true;
-    if (this.exportIcon) this.exportIcon.style.display = 'none';
-    if (this.exportLabel) this.exportLabel.textContent = 'CAPTURANDO...';
+    try {
+      const session = await WCA_Auth.getSession();
+      if (!session) { showScreen('loginScreen'); return this._endRun(); }
+      const sub = await WCA_Auth.checkSubscription(session.userId, session.accessToken);
+      if (sub.status !== 'active') { showScreen('noSubScreen'); return this._endRun(); }
+    } catch {
+      this._showStatus('Falha ao verificar a assinatura. Verifique sua conexão.', 'err');
+      return this._endRun();
+    }
+
+    setBtnBusy(this.exportBtn, true, 'CAPTURANDO...');
     this._resetSteps();
     this.stepsSection.classList.remove('hidden');
     this._hideStatus();
@@ -332,10 +362,13 @@ class WebClonerAI {
       console.error('[WCA]', err);
       this._showStatus(err.message, 'err');
     } finally {
-      this.exportBtn.disabled = false;
-      if (this.exportIcon) this.exportIcon.style.display = '';
-      if (this.exportLabel) this.exportLabel.textContent = 'CLONAR E BAIXAR';
+      this._endRun();
     }
+  }
+
+  _endRun() {
+    this._running = false;
+    setBtnBusy(this.exportBtn, false, 'CLONAR E BAIXAR');
   }
 
   async _captureScreenshots(tabId, windowId) {
