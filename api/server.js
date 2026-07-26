@@ -9,6 +9,7 @@ const fs       = require('fs');
 const fetch    = (...args) => import('node-fetch').then(({default: f}) => f(...args));
 
 const app = express();
+app.set('trust proxy', true);   // atrás do proxy da WaveHost — IP real do cliente
 app.use(express.json());
 app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') || '*' }));
 
@@ -124,8 +125,14 @@ async function asaasCreatePayment(customerId, data) {
       email:   data.email,
       cpfCnpj: data.cpf,
     };
-    base.installmentCount = parseInt(card.installments) || 1;
-    base.installmentValue = parseFloat((amount / base.installmentCount).toFixed(2));
+    // Parcelamento só quando > 1 (installmentCount=1 é cobrança normal — evita recusa)
+    const inst = parseInt(card.installments) || 1;
+    if (inst > 1) {
+      base.installmentCount = inst;
+      base.installmentValue = parseFloat((amount / inst).toFixed(2));
+    }
+    // remoteIp do comprador — antifraude do Asaas (recusa/limita cartão sem ele)
+    if (data.remoteIp) base.remoteIp = data.remoteIp;
   }
 
   return asaas('POST', '/payments', base);
@@ -161,23 +168,39 @@ async function generateAccessLink(email) {
   return r?.action_link || r?.properties?.action_link || redirect;
 }
 
-async function sendAccessEmail(email) {
-  // Sem Resend configurado → cai no e-mail nativo do Supabase (comportamento antigo)
+function generatePassword() {
+  // Senha legível (sem caracteres ambíguos) de 12 chars
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const bytes = crypto.randomBytes(12);
+  let p = '';
+  for (let i = 0; i < 12; i++) p += chars[bytes[i] % chars.length];
+  return p;
+}
+
+async function sendAccessEmail(email, password) {
+  const membersUrl = process.env.MEMBERS_URL || 'https://webcloneai.com.br/membros';
+
+  // Sem Resend → cai no e-mail nativo do Supabase (link p/ definir senha)
   if (!RESEND_API_KEY) {
     const redirect = process.env.PASSWORD_RESET_URL || 'https://webcloneai.com.br/redefinir-senha';
     await supaAdmin('POST', `/auth/v1/recover?redirect_to=${encodeURIComponent(redirect)}`, { email });
     return;
   }
 
-  const link       = await generateAccessLink(email);
-  const membersUrl = process.env.MEMBERS_URL || 'https://webcloneai.com.br/membros';
+  const cred = password ? `
+      <p style="color:#b8bcc4;font-size:14px;margin:0 0 8px">Seus dados de acesso:</p>
+      <div style="background:#0a0b0e;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:14px 16px;margin:0 0 8px;font-size:14px;color:#fff;line-height:1.8">
+        E-mail: <strong>${email}</strong><br>Senha: <strong style="letter-spacing:1px;font-size:16px">${password}</strong>
+      </div>
+      <p style="color:#7b8090;font-size:12px;margin:0 0 22px">Você pode trocar essa senha em "Meu perfil" depois de entrar.</p>` : '';
+
   const html = `<!doctype html><html><body style="margin:0;background:#0a0b0e;font-family:Arial,Helvetica,sans-serif;padding:32px">
     <div style="max-width:520px;margin:0 auto;background:#111318;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:36px 32px;color:#fff">
       <h1 style="font-size:22px;margin:0 0 8px">Seu acesso ao Web Clone AI</h1>
-      <p style="color:#b8bcc4;font-size:15px;line-height:1.6;margin:0 0 24px">Pagamento confirmado! Clique abaixo para <strong style="color:#fff">definir sua senha</strong> e entrar na área de membros — com a extensão e os tutoriais.</p>
-      <a href="${link}" style="display:inline-block;background:#fff;color:#0a0b0e;text-decoration:none;font-weight:700;padding:14px 26px;border-radius:100px;font-size:15px">Definir senha e acessar</a>
-      <p style="color:#7b8090;font-size:12px;line-height:1.6;margin:26px 0 0">Se o botão não abrir, use este link:<br><span style="color:#a8adb8;word-break:break-all">${link}</span></p>
-      <p style="color:#7b8090;font-size:12px;margin:18px 0 0">Área de membros: ${membersUrl}</p>
+      <p style="color:#b8bcc4;font-size:15px;line-height:1.6;margin:0 0 24px">Pagamento confirmado! Já pode entrar na área de membros — com a extensão e os tutoriais.</p>
+      ${cred}
+      <a href="${membersUrl}" style="display:inline-block;background:#fff;color:#0a0b0e;text-decoration:none;font-weight:700;padding:14px 26px;border-radius:100px;font-size:15px">Acessar área de membros</a>
+      <p style="color:#7b8090;font-size:12px;margin:22px 0 0">Ou acesse: ${membersUrl}</p>
     </div></body></html>`;
 
   const res = await fetch('https://api.resend.com/emails', {
@@ -189,10 +212,11 @@ async function sendAccessEmail(email) {
 }
 
 async function createSupabaseUser(email, plan, asaasCustomerId, asaasPaymentId) {
-  // 1. Criar usuário auth
+  // 1. Criar usuário auth com senha aleatória legível (enviada por e-mail)
+  const password = generatePassword();
   const userRes = await supaAdmin('POST', '/auth/v1/admin/users', {
     email,
-    password:      crypto.randomBytes(12).toString('base64url'),
+    password,
     email_confirm: true,
   });
 
@@ -209,7 +233,7 @@ async function createSupabaseUser(email, plan, asaasCustomerId, asaasPaymentId) 
 
   // 3. Enviar e-mail de acesso (Resend, com fallback) — best-effort, não derruba o provisioning
   try {
-    await sendAccessEmail(email);
+    await sendAccessEmail(email, password);
   } catch (e) {
     console.error('[email] falha ao enviar acesso:', e.message);
   }
@@ -261,7 +285,8 @@ app.post('/api/checkout', async (req, res) => {
     }
 
     // 2. Criar cobrança
-    const payment = await asaasCreatePayment(customer.id, { plan, paymentMethod, name, email, cpf, card });
+    const remoteIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || req.socket?.remoteAddress;
+    const payment = await asaasCreatePayment(customer.id, { plan, paymentMethod, name, email, cpf, card, remoteIp });
 
     // Para cartão confirmado de imediato:
     if (paymentMethod === 'card' && (payment.status === 'CONFIRMED' || payment.status === 'RECEIVED')) {
