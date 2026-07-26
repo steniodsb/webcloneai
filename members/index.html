@@ -234,6 +234,9 @@ main{flex:1;margin-left:var(--side);padding:0 0 60px}
 const SUPABASE_URL      = 'https://cygvhqggcqsemtrfltfk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5Z3ZocWdnY3FzZW10cmZsdGZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTE3OTAsImV4cCI6MjA5ODA2Nzc5MH0.T_tbZPZdn32uQyyQKGIRa-L3-DQydsv8ewi6h2DzFJE';
 const EXT_DOWNLOAD_URL  = '/download/web-clone-ai.zip';
+// Servida pelo próprio backend em produção; em dev aponta pra API remota.
+const API_URL = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? '' : 'https://api.webcloneai.com.br';
 
 // Aulas (fixas por enquanto — prontas pra vir do banco depois)
 const LESSONS = [
@@ -267,6 +270,21 @@ let SESSION = null;
 let MEMBERS_SETTINGS = null;
 
 // ══ Auth ══
+// O backend confere no Asaas (fonte da verdade) e sincroniza o Supabase — cancelado
+// ou estornado perde o acesso mesmo se o webhook falhou. API fora do ar → cai na
+// leitura direta do Supabase, que continua exigindo assinatura ativa.
+async function hasActiveAccess(session){
+  try {
+    const r = await fetch(`${API_URL}/api/access/verify`, { headers: { Authorization: `Bearer ${session.accessToken}` } });
+    if (r.ok) return !!(await r.json()).active;
+    if (r.status === 401) return false;
+  } catch {}
+  try {
+    const sub = await supaFetch('GET', `/rest/v1/subscriptions?user_id=eq.${session.userId}&select=status&limit=1`, null, session.accessToken);
+    return !!sub?.length && sub[0].status === 'active';
+  } catch { return false; }
+}
+
 async function checkAndShowContent(){
   let session = getLocalSession();
   if (!session || Date.now() > session.expiresAt) return showLoginWall();
@@ -279,10 +297,7 @@ async function checkAndShowContent(){
     } catch { return showLoginWall(); }
   }
 
-  try {
-    const sub = await supaFetch('GET', `/rest/v1/subscriptions?user_id=eq.${session.userId}&select=status&limit=1`, null, session.accessToken);
-    if (!sub?.length || sub[0].status !== 'active') return showLoginWall();
-  } catch { return showLoginWall(); }
+  if (!await hasActiveAccess(session)) return showLoginWall();
 
   showContent(session);
 }
@@ -404,8 +419,7 @@ async function doLogin(){
   try {
     const data = await supaFetch('POST','/auth/v1/token?grant_type=password',{ email, password });
     const session = { accessToken:data.access_token, refreshToken:data.refresh_token, userId:data.user?.id, email:data.user?.email, name:data.user?.user_metadata?.name||'', expiresAt:Date.now()+(data.expires_in??3600)*1000 };
-    const sub = await supaFetch('GET', `/rest/v1/subscriptions?user_id=eq.${session.userId}&select=status&limit=1`, null, session.accessToken);
-    if (!sub?.length || sub[0].status !== 'active') { msg.textContent='Sua conta não tem assinatura ativa.'; return; }
+    if (!await hasActiveAccess(session)) { msg.textContent='Sua conta não tem assinatura ativa.'; return; }
     saveLocalSession(session); showContent(session);
   } catch(err){
     msg.textContent = (err.message?.includes('Invalid login')||err.message?.includes('invalid_grant')) ? 'E-mail ou senha incorretos.' : (err.message||'Erro ao fazer login.');

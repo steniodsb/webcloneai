@@ -4,6 +4,7 @@
 const WCA_CONFIG = {
   supabaseUrl:     'https://cygvhqggcqsemtrfltfk.supabase.co',
   supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5Z3ZocWdnY3FzZW10cmZsdGZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTE3OTAsImV4cCI6MjA5ODA2Nzc5MH0.T_tbZPZdn32uQyyQKGIRa-L3-DQydsv8ewi6h2DzFJE',
+  apiUrl:          'https://api.webcloneai.com.br',      // backend (verifica o Asaas)
   membersUrl:      'https://webcloneai.com.br/membros',  // URL da área de membros
   checkoutUrl:     'https://webcloneai.com.br/checkout', // URL do checkout
 };
@@ -85,7 +86,25 @@ async function _refreshSession(refreshToken) {
 
 // ─── Verificação de assinatura ────────────────────────────────────────────────
 
+// O backend confere no Asaas (fonte da verdade) e sincroniza o Supabase — assim
+// um cancelamento/estorno tira o acesso mesmo se o webhook tiver falhado.
+// Se a API estiver fora, cai na leitura direta do Supabase (que continua exigindo
+// assinatura ativa) para não trancar quem pagou por causa de instabilidade nossa.
 async function wca_checkSubscription(userId, accessToken) {
+  try {
+    const res = await fetch(`${WCA_CONFIG.apiUrl}/api/access/verify`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    if (res.ok) {
+      const d = await res.json();
+      return { status: d.active ? 'active' : (d.status || 'inactive'), plan: d.plan ?? null };
+    }
+    // 401 = sessão inválida; o backend é a autoridade nesse caso
+    if (res.status === 401) return { status: 'none', plan: null };
+  } catch {
+    // rede indisponível → fallback abaixo
+  }
+
   const data = await _supa(
     'GET',
     `/rest/v1/subscriptions?user_id=eq.${userId}&select=status,plan&limit=1`,

@@ -250,15 +250,113 @@ async function activateSubscription(asaasCustomerId) {
 
   const { id: subId } = rows[0];
   await supaAdmin('PATCH', `/rest/v1/subscriptions?id=eq.${subId}`, [{ status: 'active' }]);
+  _accessCache.delete(asaasCustomerId);
   return rows[0];
 }
 
-async function deactivateSubscription(asaasCustomerId) {
+async function deactivateSubscription(asaasCustomerId, status = 'inactive') {
   await supaAdmin(
     'PATCH',
     `/rest/v1/subscriptions?asaas_customer_id=eq.${asaasCustomerId}`,
-    [{ status: 'inactive' }]
+    [{ status }]
   );
+  _accessCache.delete(asaasCustomerId);
+}
+
+// ── Acesso: o Asaas é a fonte da verdade ──────────────────────────────────────
+//
+// O status no Supabase só reflete o Asaas se o webhook chegou. Webhook perdido,
+// mal configurado ou evento não tratado deixava um cancelado/estornado com
+// acesso vitalício. Aqui a gente confere direto na API do Asaas e sincroniza.
+
+// Estados de pagamento que DÃO acesso e que TIRAM acesso
+const PAID_STATUSES    = new Set(['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH', 'DUNNING_RECEIVED']);
+const REVOKED_STATUSES = new Set([
+  'REFUNDED', 'REFUND_REQUESTED', 'REFUND_IN_PROGRESS',
+  'CHARGEBACK_REQUESTED', 'CHARGEBACK_DISPUTE', 'AWAITING_CHARGEBACK_REVERSAL',
+]);
+
+// Decide o acesso a partir da lista de pagamentos do customer no Asaas.
+// Um estorno/chargeback em qualquer cobrança revoga — vale mais que um pago.
+function decidePaymentAccess(list) {
+  if (list.some(p => REVOKED_STATUSES.has(p.status))) return { active: false, reason: 'refunded_or_chargeback' };
+  if (list.some(p => PAID_STATUSES.has(p.status)))    return { active: true,  reason: 'payment_confirmed' };
+  return { active: false, reason: 'no_paid_payment' };
+}
+
+// Cache curto por customer — evita bater no Asaas a cada abertura do popup
+const _accessCache = new Map();  // customerId -> { active, reason, at }
+const ACCESS_TTL_MS = 10 * 60 * 1000;
+
+async function asaasAccessState(customerId, plan, subId) {
+  const cached = _accessCache.get(customerId);
+  if (cached && Date.now() - cached.at < ACCESS_TTL_MS) return cached;
+
+  let state;
+  try {
+    if (plan === 'monthly' && subId) {
+      // Mensal: a assinatura no Asaas manda
+      const sub = await asaas('GET', `/subscriptions/${subId}`);
+      state = sub.status === 'ACTIVE'
+        ? { active: true,  reason: 'subscription_active' }
+        : { active: false, reason: `subscription_${String(sub.status || '').toLowerCase()}` };
+    } else {
+      // Vitalício: precisa de um pagamento pago e nenhum estorno/chargeback
+      const r = await asaas('GET', `/payments?customer=${encodeURIComponent(customerId)}&limit=100`);
+      state = decidePaymentAccess(r.data || []);
+    }
+  } catch (e) {
+    // Asaas fora do ar não pode derrubar o acesso de quem pagou — mantém o DB
+    console.error('[access] falha ao consultar Asaas:', e.message);
+    return { active: null, reason: 'asaas_unreachable', at: 0 };
+  }
+
+  state.at = Date.now();
+  _accessCache.set(customerId, state);
+  return state;
+}
+
+// Resolve o acesso de um usuário e sincroniza o Supabase se estiver divergente
+async function resolveAccess(userId) {
+  const rows = await supaAdmin(
+    'GET',
+    `/rest/v1/subscriptions?user_id=eq.${userId}&select=id,status,plan,asaas_customer_id,asaas_sub_id&limit=1`
+  );
+  if (!rows?.length) return { active: false, status: 'none', plan: null, reason: 'no_subscription' };
+
+  const sub = rows[0];
+
+  // Sem customer no Asaas (cortesia/liberação manual pelo admin) → o DB manda
+  if (!sub.asaas_customer_id) {
+    return { active: sub.status === 'active', status: sub.status, plan: sub.plan, reason: 'manual' };
+  }
+
+  const state = await asaasAccessState(sub.asaas_customer_id, sub.plan, sub.asaas_sub_id);
+
+  // Asaas inacessível → responde com o que está no DB, sem alterar nada
+  if (state.active === null) {
+    return { active: sub.status === 'active', status: sub.status, plan: sub.plan, reason: state.reason };
+  }
+
+  const wanted = state.active ? 'active' : 'inactive';
+  if (sub.status !== wanted) {
+    await supaAdmin('PATCH', `/rest/v1/subscriptions?id=eq.${sub.id}`, [{ status: wanted }]);
+    console.log(`[access] sync ${userId}: ${sub.status} → ${wanted} (${state.reason})`);
+  }
+
+  return { active: state.active, status: wanted, plan: sub.plan, reason: state.reason };
+}
+
+// Identifica o usuário pelo JWT do Supabase mandado pelo cliente
+async function userFromToken(req) {
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  const u = await res.json().catch(() => null);
+  return u?.id ? u : null;
 }
 
 // ── Endpoint: POST /api/checkout ──────────────────────────────────────────────
@@ -367,23 +465,45 @@ app.post('/api/webhook/asaas', express.json(), async (req, res) => {
         break;
       }
 
-      // Estorno ou reembolso — revogar acesso
+      // Estorno, chargeback ou cobrança removida — revogar acesso
       case 'PAYMENT_REFUNDED':
+      case 'PAYMENT_REFUND_IN_PROGRESS':
+      case 'PAYMENT_PARTIALLY_REFUNDED':
       case 'PAYMENT_CHARGEBACK_REQUESTED':
-      case 'PAYMENT_CHARGEBACK_DISPUTE': {
+      case 'PAYMENT_CHARGEBACK_DISPUTE':
+      case 'PAYMENT_AWAITING_CHARGEBACK_REVERSAL':
+      case 'PAYMENT_REVERSED':
+      case 'PAYMENT_DELETED': {
         const { payment } = event;
         if (payment?.customer) {
-          await deactivateSubscription(payment.customer);
+          const st = event.event === 'PAYMENT_REFUNDED' ? 'refunded' : 'inactive';
+          await deactivateSubscription(payment.customer, st);
         }
+        break;
+      }
+
+      // Mensalidade vencida — corta o acesso até voltar a pagar
+      case 'PAYMENT_OVERDUE': {
+        const { payment } = event;
+        if (payment?.customer) await deactivateSubscription(payment.customer, 'expired');
+        break;
+      }
+
+      // Chargeback revertido / cobrança restaurada — devolve o acesso
+      case 'PAYMENT_CHARGEBACK_REVERSED':
+      case 'PAYMENT_RESTORED': {
+        const { payment } = event;
+        if (payment?.customer) await activateSubscription(payment.customer);
         break;
       }
 
       // Assinatura cancelada ou expirada
       case 'SUBSCRIPTION_DELETED':
-      case 'SUBSCRIPTION_INACTIVATED': {
+      case 'SUBSCRIPTION_INACTIVATED':
+      case 'SUBSCRIPTION_EXPIRED': {
         const { subscription } = event;
         if (subscription?.customer) {
-          await deactivateSubscription(subscription.customer);
+          await deactivateSubscription(subscription.customer, 'expired');
         }
         break;
       }
@@ -432,6 +552,25 @@ app.get('/api/user/status', async (req, res) => {
     if (!subs?.length) return res.json({ status: 'none' });
     return res.json({ status: subs[0].status, plan: subs[0].plan });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Endpoint: GET /api/access/verify ──────────────────────────────────────────
+//
+// Usado pela extensão e pela área de membros a cada abertura/exportação.
+// Confere no Asaas (fonte da verdade), sincroniza o Supabase e responde.
+// Auth: Bearer <access_token do Supabase do próprio usuário>.
+
+app.get('/api/access/verify', async (req, res) => {
+  try {
+    const user = await userFromToken(req);
+    if (!user) return res.status(401).json({ error: 'Sessão inválida.', active: false });
+
+    const out = await resolveAccess(user.id);
+    res.json(out);
+  } catch (err) {
+    console.error('[access/verify]', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -672,6 +811,11 @@ app.get('/download/web-clone-ai.zip', async (_req, res) => {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
-  console.log(`[Web Clone AI API] rodando na porta ${PORT} — ${USE_SANDBOX ? 'SANDBOX' : 'PRODUÇÃO'} (${ASAAS_BASE})`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`[Web Clone AI API] rodando na porta ${PORT} — ${USE_SANDBOX ? 'SANDBOX' : 'PRODUÇÃO'} (${ASAAS_BASE})`);
+  });
+}
+
+// Exportado para teste (require direto não sobe o servidor)
+module.exports = { app, decidePaymentAccess, validarCPF, generatePassword };
