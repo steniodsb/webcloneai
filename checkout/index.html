@@ -520,6 +520,8 @@
 
     .copy-hint { font-size: 10.5px; color: var(--t3); }
   </style>
+<script src="https://cdn.utmify.com.br/scripts/utms/latest.js"
+        data-utmify-prevent-xcod-sck data-utmify-prevent-subids async defer></script>
 </head>
 <body>
 
@@ -687,6 +689,13 @@
       </div>
 
       <!-- CTA -->
+      <label class="aceite">
+        <input type="checkbox" id="aceitoTermos" required>
+        <span>Li e aceito os <a href="/termos" target="_blank" rel="noopener">Termos de Uso</a> e a
+        <a href="/termos#privacidade" target="_blank" rel="noopener">Política de Privacidade</a>, e entendo que
+        <strong>o uso do material capturado é de minha responsabilidade</strong>.</span>
+      </label>
+
       <div class="bw">
         <div class="bspin"></div>
         <button type="submit" class="cta-btn" id="submitBtn">
@@ -694,7 +703,16 @@
           <span id="submitLabel">FINALIZAR PEDIDO</span>
         </button>
       </div>
-      <p class="secure-note">🔒 Pagamento seguro · Processado via Asaas</p>
+      <style>
+.aceite{display:flex;gap:11px;align-items:flex-start;margin:0 0 16px;cursor:pointer;
+ font-size:12.5px;line-height:1.6;color:rgba(255,255,255,.62)}
+.aceite input{flex:none;width:17px;height:17px;margin-top:1px;accent-color:#d6dce4;cursor:pointer}
+.aceite a{color:#c0c5ce;text-decoration:underline;text-underline-offset:3px}
+.aceite strong{color:rgba(255,255,255,.86);font-weight:600}
+.aceite.faltando{color:#ff9b9b}
+.aceite.faltando a{color:#ff9b9b}
+</style>
+<p class="secure-note">🔒 Pagamento seguro · Processado via Asaas</p>
 
     </form>
   </div>

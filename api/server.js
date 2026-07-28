@@ -979,6 +979,7 @@ app.get('/',                (_req, res) => res.sendFile(path.join(SITE_ROOT, 'la
 app.get(`/${ADMIN_PATH}`,   (_req, res) => res.sendFile(path.join(SITE_ROOT, 'admin/index.html')));
 app.get('/lp',              (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/index.html')));
 app.get('/membros',         (_req, res) => res.sendFile(path.join(SITE_ROOT, 'members/index.html')));
+app.get('/termos',          (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/termos.html')));
 app.get('/obrigado',        (_req, res) => res.sendFile(path.join(SITE_ROOT, 'checkout/obrigado.html')));
 app.get('/recuperar-senha', (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/recuperar-senha.html')));
 app.get('/redefinir-senha', (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/redefinir-senha.html')));

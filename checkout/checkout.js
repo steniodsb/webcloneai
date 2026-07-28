@@ -125,6 +125,17 @@ document.getElementById('checkoutForm').addEventListener('submit', async functio
   clearMsg();
 
   try {
+    // Aceite dos termos é obrigatório — e precisa travar aqui, no JS, porque o
+    // "required" do HTML não impede envio quando o submit é interceptado.
+    const aceite = document.getElementById('aceitoTermos');
+    if (aceite && !aceite.checked) {
+      aceite.closest('.aceite').classList.add('faltando');
+      showMsg('Para continuar, aceite os Termos de Uso.', 'err');
+      aceite.focus();
+      return;
+    }
+    if (aceite) aceite.closest('.aceite').classList.remove('faltando');
+
     const payload = {
       plan:          currentPlan,
       paymentMethod: currentPayment,
