@@ -73,7 +73,20 @@ nav .links a:hover{color:#fff}
 
 /* ---- HERO ---- */
 .hero{position:relative;padding:132px 0 0;overflow:hidden}
-.beam{position:absolute;top:0;left:50%;transform:translateX(-50%);width:2.5px;height:88%;background:linear-gradient(180deg,transparent,var(--s1) 22%,var(--s3) 62%,transparent);filter:blur(2px);opacity:.8;animation:beamP 4s ease-in-out infinite;z-index:1}
+.pillar{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;
+ mix-blend-mode:screen;opacity:0;transition:opacity 1.2s ease}
+.pillar.on{opacity:1}
+/* Scrim entre a luz e o texto. Sem ele o título cai em cima da parte mais
+   clara da coluna e some; e o piso cinza do shader, somado por mix-blend-mode
+   screen, tira o preto do fundo. Escurece o miolo e deixa a luz respirar nas
+   bordas e no topo. */
+.hero::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+ background:
+  radial-gradient(ellipse 62% 46% at 50% 40%, rgba(8,9,11,.90) 0%, rgba(8,9,11,.62) 45%, rgba(8,9,11,0) 78%),
+  linear-gradient(180deg, rgba(8,9,11,.55) 0%, rgba(8,9,11,0) 22%, rgba(8,9,11,0) 68%, var(--bg) 100%)}
+/* fallback: sem WebGL o feixe CSS antigo volta */
+.pillar-off .beam{display:block}
+.beam{display:none;position:absolute;top:0;left:50%;transform:translateX(-50%);width:2.5px;height:88%;background:linear-gradient(180deg,transparent,var(--s1) 22%,var(--s3) 62%,transparent);filter:blur(2px);opacity:.8;animation:beamP 4s ease-in-out infinite;z-index:1}
 .beam::after{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:200px;height:100%;background:linear-gradient(180deg,rgba(200,208,220,.14),transparent 70%);filter:blur(38px)}
 @keyframes beamP{0%,100%{opacity:.5}50%{opacity:1}}
 .glow{position:absolute;border-radius:50%;filter:blur(95px);pointer-events:none;z-index:0}
@@ -282,6 +295,7 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
 <!-- HERO -->
 <header class="hero" id="top">
   <div class="glow a" id="g1"></div><div class="glow b"></div><div class="glow c"></div>
+  <canvas class="pillar" id="pillar" aria-hidden="true"></canvas>
   <div class="beam"></div>
   <div class="wrap center">
     <span class="eye rv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18V9M9 18V5M14 18v-6M19 18v-9"/></svg> Extensão Chrome · Processamento local</span>
@@ -484,6 +498,141 @@ function shot(s){
 document.getElementById('shots').innerHTML=(SHOTS.map(shot).join('')).repeat(2);
 /* autoplay via innerHTML nem sempre dispara: força o play (silencioso) */
 document.querySelectorAll('#shots video').forEach(function(v){v.muted=true;v.playsInline=true;var p=v.play();if(p&&p.catch)p.catch(function(){});});
+
+
+/* ── LIGHT PILLAR (fundo da hero) ─────────────────────────────────────────────
+   Porte do componente LightPillar do React Bits (reactbits.dev), que usa
+   three.js. Aqui é WebGL puro: a cena original é só uma câmera ortográfica com
+   um plano 2x2, ou seja, um quad de tela cheia — o three.js seria 150 KB de
+   encanamento para rodar um fragment shader. O shader abaixo é o mesmo. */
+(function(){
+  var cv = document.getElementById('pillar');
+  if (!cv) return;
+  var hero = cv.parentNode;
+  function desistir(){ hero.classList.add('pillar-off'); cv.style.display='none'; }
+
+  if (matchMedia('(prefers-reduced-motion:reduce)').matches) return desistir();
+
+  var gl = cv.getContext('webgl',{antialias:false,alpha:true,powerPreference:'high-performance'})
+        || cv.getContext('experimental-webgl');
+  if (!gl) return desistir();
+
+  /* Parâmetros (os mesmos passados ao componente) */
+  var P = { topColor:[0.549,0.549,0.549], bottomColor:[0,0,0], intensity:2.3,
+            rotationSpeed:1.7, glowAmount:0.005, pillarWidth:1.0, pillarHeight:0.4,
+            noiseIntensity:1.0, pillarRotation:180 };
+
+  /* O componente derruba a qualidade no celular; aqui também — 80 iterações de
+     raymarch por pixel fritam bateria em telefone. */
+  var mobile = matchMedia('(max-width:900px)').matches || /Mobi|Android/i.test(navigator.userAgent);
+  var Q = mobile ? { iter:24, wave:1, dpr:0.5,  step:1.5 }
+                 : { iter:64, wave:3, dpr:Math.min(devicePixelRatio||1, 1.5), step:1.1 };
+
+  var VS = 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
+  var FS =
+  'precision highp float;' +
+  'uniform float uTime,uIntensity,uGlowAmount,uPillarWidth,uPillarHeight,uNoiseIntensity;' +
+  'uniform float uRotCos,uRotSin,uPillarRotCos,uPillarRotSin,uWaveSin,uWaveCos;' +
+  'uniform vec2 uResolution;uniform vec3 uTopColor,uBottomColor;' +
+  /* tanh só existe a partir do GLSL ES 3.0; o three.js compila em WebGL2 e
+     ganha de graça. Em WebGL1 é preciso escrever — com clamp, senão exp()
+     estoura e o pixel vira NaN (tela preta). */
+  'vec3 tanh3(vec3 x){x=clamp(x,-10.0,10.0);vec3 e=exp(2.0*x);return (e-1.0)/(e+1.0);}' +
+  'void main(){' +
+  ' vec2 uv=(gl_FragCoord.xy/uResolution*2.0-1.0)*vec2(uResolution.x/uResolution.y,1.0);' +
+  ' uv=vec2(uPillarRotCos*uv.x-uPillarRotSin*uv.y,uPillarRotSin*uv.x+uPillarRotCos*uv.y);' +
+  ' vec3 ro=vec3(0.0,0.0,-10.0);vec3 rd=normalize(vec3(uv,1.0));' +
+  ' vec3 col=vec3(0.0);float t=0.1;' +
+  ' for(int i=0;i<ITER;i++){' +
+  '  vec3 p=ro+rd*t;' +
+  '  p.xz=vec2(uRotCos*p.x-uRotSin*p.z,uRotSin*p.x+uRotCos*p.z);' +
+  '  vec3 q=p;q.y=p.y*uPillarHeight+uTime;' +
+  '  float freq=1.0,amp=1.0;' +
+  '  for(int j=0;j<WAVE;j++){' +
+  '   q.xz=vec2(uWaveCos*q.x-uWaveSin*q.z,uWaveSin*q.x+uWaveCos*q.z);' +
+  '   q+=cos(q.zxy*freq-uTime*float(j)*2.0)*amp;freq*=2.0;amp*=0.5;}' +
+  '  float d=length(cos(q.xz))-0.2;' +
+  '  float bound=length(p.xz)-uPillarWidth;' +
+  '  float k=4.0;float h=max(k-abs(d-bound),0.0);' +
+  '  d=max(d,bound)+h*h*0.0625/k;d=abs(d)*0.15+0.01;' +
+  '  float grad=clamp((15.0-p.y)/30.0,0.0,1.0);' +
+  '  col+=mix(uBottomColor,uTopColor,grad)/d;' +
+  '  t+=d*STEP;if(t>50.0)break;}' +
+  ' col=tanh3(col*uGlowAmount/(uPillarWidth/3.0));' +
+  ' col-=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)/15.0*uNoiseIntensity;' +
+  /* Desvio proposital do original: o raymarch deixa um piso de luz ambiente
+     (~0.045) que, somado por mix-blend-mode:screen, tirava o preto da pagina
+     inteira — medido: cantos em (31,31,33) contra os (8,9,11) do site. No
+     componente original isso nao aparece porque ele vive sozinho num quadro
+     preto. Aqui o piso e cortado; a coluna (perto de 1.0) nao sente. */
+  ' col=max(col-0.045,0.0);' +
+  ' gl_FragColor=vec4(col*uIntensity,1.0);}';
+  FS = FS.replace(/ITER/g, Q.iter).replace(/WAVE/g, Q.wave).replace(/STEP/g, Q.step.toFixed(1));
+
+  function compilar(tipo,src){
+    var sh=gl.createShader(tipo);gl.shaderSource(sh,src);gl.compileShader(sh);
+    if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)){console.warn('[pillar]',gl.getShaderInfoLog(sh));return null;}
+    return sh;
+  }
+  var vs=compilar(gl.VERTEX_SHADER,VS), fs=compilar(gl.FRAGMENT_SHADER,FS);
+  if(!vs||!fs) return desistir();
+  var prog=gl.createProgram();gl.attachShader(prog,vs);gl.attachShader(prog,fs);gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog,gl.LINK_STATUS)) return desistir();
+  gl.useProgram(prog);
+
+  var buf=gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  var loc=gl.getAttribLocation(prog,'p');
+  gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+
+  var U={};['uTime','uResolution','uTopColor','uBottomColor','uIntensity','uGlowAmount',
+   'uPillarWidth','uPillarHeight','uNoiseIntensity','uRotCos','uRotSin','uPillarRotCos',
+   'uPillarRotSin','uWaveSin','uWaveCos'].forEach(function(n){U[n]=gl.getUniformLocation(prog,n)});
+
+  var rad=P.pillarRotation*Math.PI/180;
+  gl.uniform3fv(U.uTopColor,P.topColor);
+  gl.uniform3fv(U.uBottomColor,P.bottomColor);
+  gl.uniform1f(U.uIntensity,P.intensity);
+  gl.uniform1f(U.uGlowAmount,P.glowAmount);
+  gl.uniform1f(U.uPillarWidth,P.pillarWidth);
+  gl.uniform1f(U.uPillarHeight,P.pillarHeight);
+  gl.uniform1f(U.uNoiseIntensity,P.noiseIntensity);
+  gl.uniform1f(U.uPillarRotCos,Math.cos(rad));
+  gl.uniform1f(U.uPillarRotSin,Math.sin(rad));
+  gl.uniform1f(U.uWaveSin,Math.sin(0.4));
+  gl.uniform1f(U.uWaveCos,Math.cos(0.4));
+
+  function medir(){
+    var w=Math.max(1,Math.round(cv.clientWidth*Q.dpr)), h=Math.max(1,Math.round(cv.clientHeight*Q.dpr));
+    if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;gl.viewport(0,0,w,h);gl.uniform2f(U.uResolution,w,h);}
+  }
+  addEventListener('resize',medir,{passive:true});
+
+  /* Só desenha enquanto a hero está na tela: rolou para baixo, para de gastar
+     GPU e bateria. */
+  var visivel=true, tempo=0, raf=0;
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(function(es){
+      visivel=es[0].isIntersecting;
+      if(visivel&&!raf) raf=requestAnimationFrame(quadro);
+    },{threshold:0}).observe(hero);
+  }
+  function quadro(){
+    raf=0;
+    if(!visivel) return;
+    medir();
+    tempo+=0.016*P.rotationSpeed;
+    gl.uniform1f(U.uTime,tempo);
+    gl.uniform1f(U.uRotCos,Math.cos(tempo*0.3));
+    gl.uniform1f(U.uRotSin,Math.sin(tempo*0.3));
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    raf=requestAnimationFrame(quadro);
+  }
+  medir();
+  cv.classList.add('on');
+  raf=requestAnimationFrame(quadro);
+})();
 
 /* O mockup nasce inclinado (rotateX 9deg) e vai ficando RETO conforme a pessoa
    rola — quando o vídeo está enquadrado na tela, está a 0deg e dá pra assistir
