@@ -125,6 +125,25 @@ main{flex:1;margin-left:var(--side);padding:0 0 60px}
   #menuToggle{display:inline-flex}
   .backdrop.show{display:block}
 }
+
+/* ── Player de aula (modal) ─────────────────────────────────────────────
+   Fachada igual à da landing: nada do YouTube carrega até o clique. */
+.lesson.playable{cursor:pointer}
+.lesson .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.lesson .thumb .play{position:relative;z-index:1}
+.vmodal{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:24px;
+  background:rgba(6,7,9,.82);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.vmodal.open{display:flex}
+.vmodal .box{width:min(980px,100%);background:var(--panel2,#0d0f14);border:1px solid var(--line);
+  border-radius:16px;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.7)}
+.vmodal .top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;
+  border-bottom:1px solid var(--line)}
+.vmodal .top b{font-size:15px;font-weight:600}
+.vmodal .x{background:none;border:0;color:var(--t2,rgba(255,255,255,.6));font-size:26px;line-height:1;
+  cursor:pointer;padding:0 4px;font-family:inherit}
+.vmodal .x:hover{color:#fff}
+.vmodal .frame{position:relative;aspect-ratio:16/9;background:#000}
+.vmodal .frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 </style>
 </head>
 <body>
@@ -240,9 +259,9 @@ const API_URL = (location.hostname === 'localhost' || location.hostname === '127
 
 // Aulas (fixas por enquanto — prontas pra vir do banco depois)
 const LESSONS = [
-  { n:1, title:'Como instalar a extensão no Chrome', desc:'Passo a passo para carregar a extensão no modo desenvolvedor e fixar na barra do Chrome.', dur:'3:45', status:'available' },
+  { n:1, title:'Como instalar a extensão no Chrome', desc:'Passo a passo para carregar a extensão no modo desenvolvedor e fixar na barra do Chrome.', dur:'3:45', status:'available', video:'https://www.youtube.com/watch?v=x9B_qe6Fc4U' },
   { n:2, title:'Como instalar no Edge e no Brave', desc:'Instalação do Web Clone AI em outros navegadores baseados no Chromium.', dur:'4:20', status:'available' },
-  { n:3, title:'Clonando seu primeiro site', desc:'Demonstração completa clonando uma landing page real e abrindo no Claude Code.', dur:'8:00', status:'available' },
+  { n:3, title:'Clonando seu primeiro site', desc:'Demonstração completa clonando uma landing page real e abrindo no Claude Code.', dur:'8:00', status:'available', video:'https://www.youtube.com/watch?v=5Zf_y95I33c' },
   { n:4, title:'Personalizando o site clonado com IA', desc:'Como usar o PROMPT.md gerado para adaptar qualquer site para o seu projeto.', dur:'', status:'soon' },
   { n:5, title:'Publicando o site no Vercel', desc:'Do ZIP exportado ao site online em menos de 5 minutos com a Vercel.', dur:'', status:'soon' },
 ];
@@ -347,11 +366,51 @@ function renderBanner(s){
     `<div class="bt"><p style="color:var(--s3);font-size:12px;letter-spacing:1px;text-transform:uppercase;margin:0 0 8px">Olá, ${fn} 👋</p><h2>${title}</h2><p>${sub}</p></div>`;
 }
 
-function lessonCard(l){
-  const on = (l.status || 'available') === 'available';
-  const n  = l.position || 0;
-  return `<div class="lesson ${on?'':'locked'}"><div class="thumb"><div class="play"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div>${l.duration?`<span class="dur">${l.duration}</span>`:''}</div><div class="bd"><div class="num">AULA ${String(n).padStart(2,'0')}</div><div class="ti">${l.title||''}</div><div class="de">${l.description||''}</div><span class="badge ${on?'on':'soon'}">${on?'● Disponível':'Em breve'}</span></div></div>`;
+// Extrai o ID de qualquer formato de link do YouTube (watch?v=, youtu.be,
+// /embed/, /shorts/) — o admin cola a URL que tiver à mão.
+function ytId(url){
+  if(!url) return null;
+  const m = String(url).match(/(?:youtu\.be\/|v=|\/embed\/|\/shorts\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
 }
+
+function lessonCard(l){
+  const on  = (l.status || 'available') === 'available';
+  const n   = l.position || 0;
+  const yid = on ? ytId(l.video_url) : null;
+  // Capa: a thumbnail do próprio vídeo. É uma imagem estática — nada do
+  // YouTube (iframe, script, cookie) carrega antes de a pessoa clicar.
+  const capa = yid ? `<img src="https://i.ytimg.com/vi/${yid}/hqdefault.jpg" alt="" loading="lazy">` : '';
+  const attr = yid ? ` data-yt="${yid}" data-ti="${(l.title||'Aula').replace(/"/g,'&quot;')}"` : '';
+  return `<div class="lesson ${on?'':'locked'}${yid?' playable':''}"${attr}><div class="thumb">${capa}<div class="play"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div>${l.duration?`<span class="dur">${l.duration}</span>`:''}</div><div class="bd"><div class="num">AULA ${String(n).padStart(2,'0')}</div><div class="ti">${l.title||''}</div><div class="de">${l.description||''}</div><span class="badge ${on?'on':'soon'}">${on?'● Disponível':'Em breve'}</span></div></div>`;
+}
+
+// ── Player da aula ──
+// Delegação de evento: os cartões são recriados a cada render, então ouvir no
+// documento evita religar listener toda vez.
+(function(){
+  const modal = () => document.getElementById('vmodal');
+  function abrir(yid, titulo){
+    const m = modal();
+    document.getElementById('vmodalTitle').textContent = titulo || 'Aula';
+    document.getElementById('vmodalFrame').innerHTML =
+      `<iframe src="https://www.youtube-nocookie.com/embed/${yid}?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&color=white" title="${(titulo||'Aula').replace(/"/g,'&quot;')}" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+    m.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function fechar(){
+    const m = modal();
+    m.classList.remove('open');
+    document.getElementById('vmodalFrame').innerHTML = '';   // para o vídeo
+    document.body.style.overflow = '';
+  }
+  document.addEventListener('click', e => {
+    const card = e.target.closest('.lesson.playable');
+    if (card) return abrir(card.dataset.yt, card.dataset.ti);
+    if (e.target.id === 'vmodalClose' || e.target.id === 'vmodal') fechar();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') fechar(); });
+})();
 function moduleHtml(title, ls){
   return `<div class="module"><div class="module-h"><b>${title}</b><span>${ls.length} aula${ls.length>1?'s':''}</span></div><div class="lessons">${ls.map(lessonCard).join('')}</div></div>`;
 }
@@ -368,7 +427,7 @@ function renderModules(modules, lessons){
 }
 function renderModulesFallback(){
   $('modulesWrap').innerHTML = moduleHtml('Tutoriais',
-    LESSONS.map(x => ({ position:x.n, title:x.title, description:x.desc, duration:x.dur, status:x.status })));
+    LESSONS.map(x => ({ position:x.n, title:x.title, description:x.desc, duration:x.dur, status:x.status, video_url:x.video })));
 }
 
 // ══ Perfil ══
@@ -447,5 +506,11 @@ $('backdrop').addEventListener('click', closeSidebar);
 // ══ Boot ══
 checkAndShowContent();
 </script>
+<div class="vmodal" id="vmodal" role="dialog" aria-modal="true" aria-label="Aula">
+  <div class="box">
+    <div class="top"><b id="vmodalTitle"></b><button class="x" id="vmodalClose" type="button" aria-label="Fechar">&times;</button></div>
+    <div class="frame" id="vmodalFrame"></div>
+  </div>
+</div>
 </body>
 </html>
