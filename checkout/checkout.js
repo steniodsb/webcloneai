@@ -2,6 +2,18 @@
 
 // ─── Configuração — preencher com credenciais reais ──────────────────────────
 const API_URL = 'https://api.webcloneai.com.br';
+const VALOR = 29.90;
+
+// Manda para a página de obrigado, que é quem dispara o Purchase.
+function irParaObrigado(email) {
+  const q = new URLSearchParams({ v: String(VALOR) });
+  if (email) q.set('e', email);
+  setTimeout(() => { location.href = '/obrigado?' + q.toString(); }, 900);
+}
+
+// Quem abriu o checkout demonstrou intenção de compra — é este evento que o
+// Meta usa para achar mais gente parecida.
+if (window.fbq) fbq('track', 'InitiateCheckout', { value: VALOR, currency: 'BRL', content_name: 'Web Clone AI' });
 
 // ─── Estado ──────────────────────────────────────────────────────────────────
 let currentPlan    = 'lifetime';
@@ -131,9 +143,11 @@ document.getElementById('checkoutForm').addEventListener('submit', async functio
       showPixResult(data);
     } else {
       if (data.status === 'CONFIRMED' || data.status === 'RECEIVED') {
-        showMsg('✅ Pagamento confirmado! Verifique seu e-mail para acessar sua conta.', 'ok');
+        showMsg('✅ Pagamento confirmado! Redirecionando…', 'ok');
         document.getElementById('checkoutForm').style.display = 'none';
-        if (window.fbq) fbq('track', 'Purchase', { value: 29.90, currency: 'BRL' });
+        // O Purchase dispara na /obrigado, não aqui — senão a mesma venda seria
+        // contada duas vezes no gerenciador de anúncios.
+        irParaObrigado(email);
       } else {
         throw new Error('Pagamento não confirmado. Tente novamente ou use PIX.');
       }
@@ -210,9 +224,9 @@ async function verifyAccess(email) {
     const data = await res.json();
     if (data.paid) {
       msg.className = 'form-msg ok';
-      msg.textContent = '✅ Pagamento confirmado! Verifique seu e-mail para acessar sua conta.';
+      msg.textContent = '✅ Pagamento confirmado! Redirecionando…';
       btn.style.display = 'none';
-      if (window.fbq) fbq('track', 'Purchase', { value: 29.90, currency: 'BRL' });
+      irParaObrigado(email);
     } else {
       msg.className = 'form-msg err';
       msg.textContent = 'Pagamento ainda não confirmado. Aguarde alguns instantes e tente novamente.';

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pagamento confirmado — Web Cloner AI</title>
+<meta name="robots" content="noindex,nofollow">
+
+<!-- Meta Pixel -->
+<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','1721076848935263');fbq('track','PageView');</script>
+<noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1721076848935263&ev=PageView&noscript=1"/></noscript>
+<!-- End Meta Pixel -->
+
+<style>
+@font-face{font-family:'Urbanist';src:url('/landing/fonts/urbanist-latin.woff2') format('woff2');font-weight:100 1000;font-style:normal;font-display:swap}
+:root{
+  --bg:#08090b;--panel:#0d0f14;
+  --s1:#eef1f5;--s2:#d6dce4;--s3:#c0c5ce;--s4:#8a94a6;
+  --txt2:rgba(255,255,255,.60);--txt3:rgba(255,255,255,.40);
+  --line:rgba(255,255,255,.08);
+  --glass:linear-gradient(160deg,rgba(255,255,255,.06),rgba(255,255,255,.018));
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:#fff;
+  font-family:'Urbanist',-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased;
+  display:flex;align-items:center;justify-content:center;padding:32px 20px;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+
+/* luz de fundo */
+.glow{position:fixed;border-radius:50%;filter:blur(95px);pointer-events:none;z-index:0}
+.glow.a{width:680px;height:440px;background:rgba(150,163,185,.16);top:-140px;left:50%;transform:translateX(-50%)}
+.glow.b{width:460px;height:340px;background:rgba(110,122,145,.10);bottom:-120px;left:-6%}
+
+.card{position:relative;z-index:1;width:100%;max-width:560px;text-align:center;
+  background:var(--glass);border:1px solid var(--line);border-radius:22px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 40px 90px rgba(0,0,0,.6);padding:44px 38px}
+
+.check{width:74px;height:74px;margin:0 auto 24px;border-radius:50%;position:relative;
+  background:linear-gradient(145deg,rgba(222,227,234,.30),rgba(128,138,156,.08));
+  border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;
+  box-shadow:inset 0 1.5px 1px rgba(255,255,255,.55),inset 0 -10px 18px rgba(0,0,0,.28),0 12px 26px rgba(0,0,0,.5);
+  animation:pop .5s cubic-bezier(.2,1.3,.4,1) both}
+.check svg{width:34px;height:34px;color:#f2f5f8}
+.check::after{content:"";position:absolute;inset:-6px;border-radius:50%;
+  box-shadow:0 0 0 0 rgba(214,220,228,.35);animation:pulse 2.6s ease-in-out infinite}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(214,220,228,.3)}50%{box-shadow:0 0 0 20px rgba(214,220,228,0)}}
+
+h1{font-size:32px;font-weight:500;letter-spacing:-1px;line-height:1.1;margin:0 0 12px}
+.sub{color:var(--txt2);font-size:15.5px;line-height:1.62;margin:0 0 28px}
+
+.steps{text-align:left;background:rgba(255,255,255,.03);border:1px solid var(--line);
+  border-radius:14px;padding:20px 22px;margin:0 0 28px}
+.steps li{color:var(--txt2);font-size:14px;line-height:1.6;margin:0 0 12px;padding-left:4px}
+.steps li:last-child{margin-bottom:0}
+.steps b{color:#fff;font-weight:600}
+.steps ol{margin:0;padding-left:18px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;
+  padding:15px 26px;border-radius:100px;font-size:15px;font-weight:500;cursor:pointer;border:0;
+  font-family:inherit;background:linear-gradient(100deg,var(--s4),var(--s2) 52%,var(--s1));color:#0a0b0e;
+  box-shadow:0 8px 28px rgba(198,205,215,.22);transition:transform .25s,box-shadow .25s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 14px 38px rgba(198,205,215,.34)}
+
+.foot{margin-top:22px;font-size:12.5px;color:var(--txt3);line-height:1.6}
+.foot a{color:var(--s3);text-decoration:underline;text-underline-offset:3px}
+@media(max-width:520px){.card{padding:34px 24px}h1{font-size:26px}}
+</style>
+</head>
+<body>
+<div class="glow a"></div><div class="glow b"></div>
+
+<main class="card">
+  <div class="check">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 6 9 17l-5-5"/>
+    </svg>
+  </div>
+
+  <h1>Pagamento concluído</h1>
+  <p class="sub">Você vai receber um e-mail com a <b style="color:#fff;font-weight:600">senha de acesso</b> à plataforma.</p>
+
+  <div class="steps">
+    <ol>
+      <li>Procure o e-mail <b>Seu acesso ao Web Clone AI</b> — ele traz seu login e a senha.</li>
+      <li>Entre na área de membros e <b>baixe a extensão</b>.</li>
+      <li>Siga a aula de instalação e comece a clonar.</li>
+    </ol>
+  </div>
+
+  <a class="btn" id="btnMembros" href="/membros">Acessar a área de membros →</a>
+
+  <p class="foot">
+    Não achou o e-mail? Veja no spam ou na aba Promoções.<br>
+    Se ainda assim não chegar, fale com a gente em
+    <a href="mailto:contato@webcloneai.com.br">contato@webcloneai.com.br</a>.
+  </p>
+</main>
+
+<script>
+// Purchase dispara AQUI e só aqui — o checkout redireciona para cá depois da
+// confirmação. Ter o evento nos dois lugares contaria a mesma venda duas vezes
+// e estragaria o custo por aquisição no gerenciador de anúncios.
+(function(){
+  var q = new URLSearchParams(location.search);
+  var valor = parseFloat(q.get('v'));
+  if (!(valor > 0)) valor = 29.90;
+
+  // eventID: se um dia entrar a Conversions API pelo servidor, o Meta usa isto
+  // para deduplicar o evento do navegador com o do servidor.
+  var id = q.get('p') || null;
+
+  if (window.fbq) {
+    fbq('track', 'Purchase',
+        { value: valor, currency: 'BRL', content_name: 'Web Clone AI', content_type: 'product' },
+        id ? { eventID: id } : undefined);
+  }
+
+  // Guarda o e-mail do comprador para pré-preencher o login da área de membros
+  var email = q.get('e');
+  if (email) {
+    try { localStorage.setItem('wca_last_email', email); } catch (e) {}
+  }
+})();
+</script>
+</body>
+</html>

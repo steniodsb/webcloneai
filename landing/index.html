@@ -112,7 +112,8 @@ nav .links a:hover{color:#fff}
 /* preload="none": o mp4 só é baixado no clique, então o topo da página não
    carrega vídeo nenhum — o que aparece de imediato é o poster (39 KB). */
 .vid{position:relative;aspect-ratio:16/9;background:#0a0b0e;overflow:hidden}
-.vid video{width:100%;height:100%;display:block;object-fit:cover}
+.vid .vid-poster,.vid iframe{position:absolute;inset:0;width:100%;height:100%;display:block;border:0}
+.vid .vid-poster{object-fit:cover}
 .vid-play{position:absolute;inset:0;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
  background:linear-gradient(180deg,rgba(10,11,14,.28),rgba(10,11,14,.62));border:0;cursor:pointer;font-family:inherit;
  transition:background .3s,opacity .3s}
@@ -297,12 +298,14 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
     <div class="mock">
       <!-- sem a .bar falsa: o vídeo é uma gravação de tela e já traz a barra
            real do navegador — duas empilhadas ficavam parecendo erro -->
-      <div class="vid" id="demoVid">
-        <video id="demoPlayer" poster="/landing/video/demo-poster.webp" preload="none" playsinline
-               controlslist="nodownload" src="/landing/video/demo.mp4"></video>
+      <!-- Fachada: até o clique não existe NADA do YouTube na página — nem
+           iframe, nem script, nem cookie. Só a nossa capa. O player só é
+           injetado quando a pessoa decide assistir. -->
+      <div class="vid" id="demoVid" data-yt="5Zf_y95I33c">
+        <img class="vid-poster" src="/landing/video/demo-poster.webp" alt="" width="1280" height="720">
         <button class="vid-play" id="demoPlay" type="button" aria-label="Reproduzir o vídeo de demonstração">
           <span class="play"><svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></span>
-          <span class="vid-lbl">Ver a demonstração · 1min18</span>
+          <span class="vid-lbl">Ver a demonstração</span>
         </button>
       </div>
     </div>
@@ -507,21 +510,30 @@ document.querySelectorAll('#shots video').forEach(function(v){v.muted=true;v.pla
  atualiza();
 })();
 
-/* Vídeo de demonstração: o mp4 só baixa no clique (preload="none").
-   Tem narração, então nada de autoplay — o usuário decide quando ouvir. */
+/* Vídeo de demonstração — fachada.
+   Antes do clique a página não carrega NADA do YouTube: sem iframe, sem script
+   de terceiro, sem cookie. Deixa o topo leve e evita expor o YouTube para quem
+   só passou os olhos. No clique, injeta o player pelo domínio -nocookie. */
 (function(){
- var wrap=document.getElementById('demoVid'), v=document.getElementById('demoPlayer'), b=document.getElementById('demoPlay');
- if(!wrap||!v||!b) return;
- b.addEventListener('click',function(){
+ var wrap=document.getElementById('demoVid'), b=document.getElementById('demoPlay');
+ if(!wrap||!b) return;
+ var id=wrap.getAttribute('data-yt');
+ function tocar(){
+   if(wrap.classList.contains('playing')) return;
    wrap.classList.add('playing');
-   v.controls=true;
-   var p=v.play(); if(p&&p.catch) p.catch(function(){ v.controls=true; });
- });
- /* voltou ao fim ou foi pausado no início: devolve a capa */
- v.addEventListener('ended',function(){ wrap.classList.remove('playing'); v.controls=false; v.currentTime=0; });
+   var f=document.createElement('iframe');
+   f.src='https://www.youtube-nocookie.com/embed/'+id+
+         '?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&color=white';
+   f.title='Demonstração';
+   f.allow='accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share';
+   f.allowFullscreen=true;
+   f.referrerPolicy='strict-origin-when-cross-origin';
+   wrap.appendChild(f);
+ }
+ b.addEventListener('click',tocar);
  /* o botão "Ver a demo" do topo rola até aqui e já inicia */
  document.querySelectorAll('a[href="#demo"]').forEach(function(a){
-   a.addEventListener('click',function(){ setTimeout(function(){ if(!wrap.classList.contains('playing')) b.click(); }, 700); });
+   a.addEventListener('click',function(){ setTimeout(tocar,700); });
  });
 })();
 var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.1,rootMargin:'0px 0px -60px 0px'});
