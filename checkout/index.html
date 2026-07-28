@@ -701,6 +701,23 @@
 
 </main>
 
+<script>
+/* ── Atribuição (Utmify) ─────────────────────────────────────────────────────
+   Guarda as UTMs da PRIMEIRA visita. O clique do anúncio cai na landing, mas a
+   compra acontece no /checkout — sem persistir aqui, a venda chegaria na Utmify
+   sem origem e o anúncio ficaria sem crédito. Só sobrescreve quando a URL traz
+   parâmetros novos, para uma visita direta não apagar a atribuição original. */
+(function(){
+ try{
+  var q=new URLSearchParams(location.search), campos=['utm_source','utm_campaign','utm_medium','utm_content','utm_term','src','sck'];
+  var achou=campos.some(function(k){return q.get(k)});
+  if(!achou) return;
+  var t={}; campos.forEach(function(k){ t[k]=q.get(k)||null });
+  t._em=new Date().toISOString();
+  localStorage.setItem('wca_utm', JSON.stringify(t));
+ }catch(e){}
+})();
+</script>
 <script src="checkout.js"></script>
 </body>
 </html>

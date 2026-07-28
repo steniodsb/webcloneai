@@ -25,6 +25,7 @@ const {
   ADMIN_EMAILS = 'contato@webcloneai.com.br,admin@webcloneai.com.br',  // logins do admin (vírgula separa vários)
   ADMIN_PASSWORD,         // senha do painel admin (defina na env — sem ela o admin fica bloqueado)
   ADMIN_SECRET,           // segredo p/ assinar o token de sessão do admin
+  UTMIFY_API_TOKEN,       // credencial da Utmify (Integrações → Webhooks → Credencial de API)
   PORT = 3000,
 } = process.env;
 
@@ -403,11 +404,76 @@ async function userFromToken(req) {
   return u?.id ? u : null;
 }
 
+// ── Utmify (atribuição de anúncio) ───────────────────────────────────────────
+//
+// A Utmify precisa saber de CADA mudança de status do pedido para casar a venda
+// com o anúncio que a originou. Como o PIX fica pendente até o cliente pagar, o
+// pedido é guardado em orders_tracking: quando o webhook de "pago" chega, as
+// UTMs que vieram do anúncio ainda estão lá — senão a venda entraria sem origem.
+
+function dataUtmify(d) {
+  // A Utmify espera "YYYY-MM-DD HH:MM:SS" em UTC
+  return (d ? new Date(d) : new Date()).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+async function enviarUtmify(pedido) {
+  if (!UTMIFY_API_TOKEN) return;   // não configurado: silencioso, não é erro
+  try {
+    const r = await fetch('https://api.utmify.com.br/api-credentials/orders', {
+      method:  'POST',
+      headers: { 'x-api-token': UTMIFY_API_TOKEN, 'Content-Type': 'application/json' },
+      body:    JSON.stringify(pedido),
+    });
+    if (!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0, 180)}`);
+    console.log(`[utmify] ${pedido.orderId} -> ${pedido.status}`);
+  } catch (e) {
+    // Atribuição não pode derrubar venda: registra e segue.
+    console.error('[utmify] falha ao enviar', pedido.orderId, e.message);
+  }
+}
+
+async function guardarPedido(paymentId, payload) {
+  // Upsert de verdade: o mesmo pedido é gravado na criação e de novo a cada
+  // mudança de status. Sem resolution=merge-duplicates o segundo POST dá 409.
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/orders_tracking?on_conflict=payment_id`, {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'apikey':         SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Prefer':        'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify([{ payment_id: paymentId, payload }]),
+    });
+    if (!r.ok) throw new Error(`${r.status}: ${(await r.text()).slice(0, 140)}`);
+  } catch (e) { console.error('[utmify] não guardou o pedido:', e.message); }
+}
+
+async function lerPedido(paymentId) {
+  try {
+    const r = await supaAdmin('GET', `/rest/v1/orders_tracking?payment_id=eq.${paymentId}&select=payload&limit=1`);
+    return r?.[0]?.payload || null;
+  } catch { return null; }
+}
+
+// Avisa a Utmify de uma mudança de status usando o pedido já guardado.
+async function statusUtmify(paymentId, status, quando) {
+  if (!UTMIFY_API_TOKEN) return;
+  const pedido = await lerPedido(paymentId);
+  if (!pedido) return;                       // veio de antes da integração
+  pedido.status = status;
+  if (status === 'paid')     pedido.approvedDate = dataUtmify(quando);
+  if (status === 'refunded') pedido.refundedAt   = dataUtmify(quando);
+  await enviarUtmify(pedido);
+  await guardarPedido(paymentId, pedido);
+}
+
 // ── Endpoint: POST /api/checkout ──────────────────────────────────────────────
 
 app.post('/api/checkout', async (req, res) => {
   try {
-    const { plan, paymentMethod, name, email, cpf, card } = req.body;
+    const { plan, paymentMethod, name, email, cpf, card, tracking } = req.body;
 
     if (!plan || !paymentMethod || !name || !email || !cpf) {
       return res.status(400).json({ error: 'Dados incompletos.' });
@@ -431,8 +497,54 @@ app.post('/api/checkout', async (req, res) => {
     const payment = await asaasCreatePayment(customer.id, { plan, paymentMethod, name, email, cpf, card, remoteIp });
 
     // Para cartão confirmado de imediato:
-    if (paymentMethod === 'card' && (payment.status === 'CONFIRMED' || payment.status === 'RECEIVED')) {
+    const pagoAgora = paymentMethod === 'card' && (payment.status === 'CONFIRMED' || payment.status === 'RECEIVED');
+    if (pagoAgora) {
       await createSupabaseUser(email, plan, customer.id, payment.id);
+    }
+
+    // Utmify: registra o pedido já na criação. PIX nasce "waiting_payment" e
+    // vira "paid" pelo webhook — sem este primeiro envio, um PIX abandonado
+    // ficaria invisível e o custo do anúncio não teria contrapartida.
+    if (payment.id) {
+      const t = tracking || {};
+      const centavos = Math.round((payment.value || 29.90) * 100);
+      const pedido = {
+        orderId: payment.id,
+        platform: 'WebCloneAI',
+        paymentMethod: paymentMethod === 'card' ? 'credit_card' : 'pix',
+        status: pagoAgora ? 'paid' : 'waiting_payment',
+        createdAt: dataUtmify(),
+        approvedDate: pagoAgora ? dataUtmify() : null,
+        refundedAt: null,
+        customer: {
+          name, email,
+          phone: t.phone || null,
+          document: String(cpf || '').replace(/\D/g, '') || null,
+          country: 'BR',
+          ip: remoteIp || null,
+        },
+        products: [{
+          id: 'web-clone-ai',
+          name: 'Web Clone AI — Vitalício',
+          planId: null, planName: null,
+          quantity: 1, priceInCents: centavos,
+        }],
+        trackingParameters: {
+          src: t.src || null, sck: t.sck || null,
+          utm_source: t.utm_source || null, utm_campaign: t.utm_campaign || null,
+          utm_medium: t.utm_medium || null, utm_content: t.utm_content || null,
+          utm_term: t.utm_term || null,
+        },
+        commission: {
+          totalPriceInCents: centavos,
+          gatewayFeeInCents: 0,
+          userCommissionInCents: centavos,
+          currency: 'BRL',
+        },
+        isTest: false,
+      };
+      await guardarPedido(payment.id, pedido);
+      await enviarUtmify(pedido);
     }
 
     // 3. Para PIX, o QR Code vem de um endpoint separado do Asaas
@@ -499,6 +611,8 @@ app.post('/api/webhook/asaas', express.json(), async (req, res) => {
           `/rest/v1/subscriptions?asaas_customer_id=eq.${payment.customer}&limit=1`
         );
 
+        await statusUtmify(payment.id, 'paid', payment.paymentDate || payment.confirmedDate);
+
         if (existing?.length) {
           await activateSubscription(payment.customer);
         } else {
@@ -521,6 +635,9 @@ app.post('/api/webhook/asaas', express.json(), async (req, res) => {
         if (payment?.customer) {
           const st = event.event === 'PAYMENT_REFUNDED' ? 'refunded' : 'inactive';
           await deactivateSubscription(payment.customer, st);
+        }
+        if (payment?.id) {
+          await statusUtmify(payment.id, /CHARGEBACK/.test(event.event) ? 'chargedback' : 'refunded', new Date());
         }
         break;
       }
@@ -889,4 +1006,4 @@ if (require.main === module) {
 }
 
 // Exportado para teste (require direto não sobe o servidor)
-module.exports = { app, decidePaymentAccess, validarCPF, generatePassword, buildExtensionZip };
+module.exports = { app, decidePaymentAccess, validarCPF, generatePassword, buildExtensionZip, dataUtmify };

@@ -4,6 +4,21 @@
 const API_URL = 'https://api.webcloneai.com.br';
 const VALOR = 29.90;
 
+// Atribuição para a Utmify: prefere o que veio na URL agora, senão usa o que
+// foi guardado na primeira visita (o clique do anúncio cai na landing, não aqui).
+function lerAtribuicao(){
+  var campos=['utm_source','utm_campaign','utm_medium','utm_content','utm_term','src','sck'];
+  var q=new URLSearchParams(location.search), t={};
+  campos.forEach(function(k){ t[k]=q.get(k)||null });
+  if(campos.some(function(k){return t[k]})) return t;
+  try{
+    var g=JSON.parse(localStorage.getItem('wca_utm')||'null');
+    if(g){ campos.forEach(function(k){ t[k]=g[k]||null }); }
+  }catch(e){}
+  return t;
+}
+
+
 // Manda para a página de obrigado, que é quem dispara o Purchase.
 function irParaObrigado(email) {
   const q = new URLSearchParams({ v: String(VALOR) });
@@ -116,6 +131,7 @@ document.getElementById('checkoutForm').addEventListener('submit', async functio
       name:          document.getElementById('fullName').value.trim(),
       email:         document.getElementById('email').value.trim(),
       cpf:           document.getElementById('cpf').value.replace(/\D/g, ''),
+      tracking:      lerAtribuicao(),
     };
 
     if (currentPayment === 'card') {
