@@ -27,6 +27,8 @@ const {
   ADMIN_SECRET,           // segredo p/ assinar o token de sessão do admin
   UTMIFY_API_TOKEN,       // credencial da Utmify (Integrações → Webhooks → Credencial de API)
   ADMIN_PATH = 'admin',   // caminho secreto do painel (troque por algo que ninguém adivinha)
+  META_PIXEL_ID = '1721076848935263',
+  META_CAPI_TOKEN,        // Gerenciador de Eventos → Configurações → Gerar token de acesso
   PORT = 3000,
 } = process.env;
 
@@ -485,6 +487,64 @@ async function statusUtmify(paymentId, status, quando) {
   await guardarPedido(paymentId, pedido);
 }
 
+// ── Conversions API do Meta ──────────────────────────────────────────────────
+//
+// O pixel do navegador só dispara Purchase na /obrigado, e no PIX o cliente paga
+// no app do banco e fecha a aba — a página nunca carrega. Resultado: o pixel
+// NUNCA registrou uma compra, mesmo com vendas reais acontecendo, e o Meta não
+// tem como aprender quem compra.
+//
+// Aqui a venda é enviada pelo SERVIDOR, no momento em que o Asaas confirma o
+// pagamento. Não depende do navegador do cliente estar aberto.
+
+function sha256(v) {
+  return crypto.createHash('sha256').update(String(v).trim().toLowerCase()).digest('hex');
+}
+
+async function enviarCompraMeta(pedido, paymentId) {
+  if (!META_CAPI_TOKEN) return;   // não configurado: silencioso
+  try {
+    const c = pedido?.customer || {};
+    const nome = String(c.name || '').trim().split(/\s+/);
+    const user_data = {
+      // A Meta exige tudo hasheado em SHA-256, menos IP e user agent.
+      em: c.email    ? [sha256(c.email)]                  : undefined,
+      ph: c.phone    ? [sha256(String(c.phone).replace(/\D/g, ''))] : undefined,
+      fn: nome[0]    ? [sha256(nome[0])]                  : undefined,
+      ln: nome.length > 1 ? [sha256(nome[nome.length - 1])] : undefined,
+      external_id: c.email ? [sha256(c.email)] : undefined,
+      client_ip_address: c.ip || undefined,
+      country: [sha256('br')],
+    };
+    const evento = {
+      event_name:  'Purchase',
+      event_time:  Math.floor(Date.now() / 1000),
+      // MESMO id que o pixel usa na /obrigado. Se os dois dispararem, a Meta
+      // deduplica em vez de contar a venda duas vezes.
+      event_id:    paymentId,
+      action_source: 'website',
+      event_source_url: 'https://webcloneai.com.br/obrigado',
+      user_data,
+      custom_data: {
+        currency: 'BRL',
+        value: ((pedido?.products?.[0]?.priceInCents) || 2990) / 100,
+        content_name: 'Web Clone AI',
+        content_type: 'product',
+      },
+    };
+    const r = await fetch(
+      `https://graph.facebook.com/v21.0/${META_PIXEL_ID}/events?access_token=${META_CAPI_TOKEN}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: [evento] }) }
+    );
+    const j = await r.json();
+    if (!r.ok) throw new Error(JSON.stringify(j).slice(0, 200));
+    console.log(`[meta-capi] Purchase enviado (${paymentId}) — recebidos: ${j.events_received}`);
+  } catch (e) {
+    // Atribuição nunca derruba venda.
+    console.error('[meta-capi] falha ao enviar Purchase:', e.message);
+  }
+}
+
 // ── Endpoint: POST /api/checkout ──────────────────────────────────────────────
 
 app.post('/api/checkout', async (req, res) => {
@@ -628,6 +688,7 @@ app.post('/api/webhook/asaas', express.json(), async (req, res) => {
         );
 
         await statusUtmify(payment.id, 'paid', payment.paymentDate || payment.confirmedDate);
+        await enviarCompraMeta(await lerPedido(payment.id), payment.id);
 
         if (existing?.length) {
           await activateSubscription(payment.customer);
