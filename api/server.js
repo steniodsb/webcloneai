@@ -26,6 +26,7 @@ const {
   ADMIN_PASSWORD,         // senha do painel admin (defina na env — sem ela o admin fica bloqueado)
   ADMIN_SECRET,           // segredo p/ assinar o token de sessão do admin
   UTMIFY_API_TOKEN,       // credencial da Utmify (Integrações → Webhooks → Credencial de API)
+  ADMIN_PATH = 'admin',   // caminho secreto do painel (troque por algo que ninguém adivinha)
   PORT = 3000,
 } = process.env;
 
@@ -392,6 +393,21 @@ async function reconcileByCustomer(customerId) {
   console.log(`[reconcile] ${customerId} -> ${alvo} (${estado.reason})`);
 }
 
+// Marca uso do assinante. "open" = abriu a extensão; "export" = mandou clonar.
+async function registrarAtividade(userId, ctx) {
+  const campos = { last_seen_at: new Date().toISOString() };
+  if (ctx === 'export') {
+    campos.last_export_at = campos.last_seen_at;
+    // exports_count é incremento: lê e soma. Volume aqui é baixo (uma clonagem
+    // por vez, por pessoa), então não compensa uma função no banco só para isso.
+    try {
+      const r = await supaAdmin('GET', `/rest/v1/subscriptions?user_id=eq.${userId}&select=exports_count&limit=1`);
+      campos.exports_count = ((r?.[0]?.exports_count) || 0) + 1;
+    } catch {}
+  }
+  await supaAdmin('PATCH', `/rest/v1/subscriptions?user_id=eq.${userId}`, [campos]);
+}
+
 // Identifica o usuário pelo JWT do Supabase mandado pelo cliente
 async function userFromToken(req) {
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -734,6 +750,11 @@ app.get('/api/access/verify', async (req, res) => {
 
     const out = await resolveAccess(user.id);
     res.json(out);
+
+    // Atividade — depois de responder, para não atrasar o cliente.
+    // A extensão chama isto ao abrir o popup (ctx=open) e antes de cada
+    // clonagem (ctx=export), então dá para medir uso real sem telemetria nova.
+    registrarAtividade(user.id, req.query.ctx).catch(() => {});
   } catch (err) {
     console.error('[access/verify]', err.message);
     res.status(500).json({ error: err.message });
@@ -798,14 +819,18 @@ app.post('/api/admin/login', (req, res) => {
 app.get('/api/admin/subscribers', requireAdmin, async (_req, res) => {
   try {
     const subs = await supaAdmin('GET', '/rest/v1/subscriptions?select=*');
-    const emails = {};
+    const emails = {}, logins = {};
     try {
       const u = await supaAdmin('GET', '/auth/v1/admin/users?per_page=1000');
-      (u.users || u || []).forEach(x => { emails[x.id] = x.email; });
+      (u.users || u || []).forEach(x => { emails[x.id] = x.email; logins[x.id] = x.last_sign_in_at; });
     } catch (e) { console.error('[admin] falha ao listar users:', e.message); }
     const rows = (subs || []).map(s => ({
       id: s.id, email: emails[s.user_id] || null, plan: s.plan, status: s.status,
       created_at: s.created_at || null, asaas_customer_id: s.asaas_customer_id,
+      last_sign_in_at: logins[s.user_id] || null,   // último login (área de membros)
+      last_seen_at:    s.last_seen_at   || null,    // última vez que abriu a extensão
+      last_export_at:  s.last_export_at || null,    // última clonagem
+      exports_count:   s.exports_count  || 0,
     }));
     res.json({ subscribers: rows, total: rows.length });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -934,7 +959,9 @@ app.use('/fonts',    express.static(path.join(SITE_ROOT, 'fonts')));
 app.use('/checkout', express.static(path.join(SITE_ROOT, 'checkout')));
 app.use('/landing',  express.static(path.join(SITE_ROOT, 'landing')));
 app.use('/members',  express.static(path.join(SITE_ROOT, 'members')));
-app.use('/admin',    express.static(path.join(SITE_ROOT, 'admin')));
+// O painel não fica em /admin: quem souber o endereço já passou da primeira
+// porta. O caminho vem de ADMIN_PATH e a senha continua obrigatória.
+app.use(`/${ADMIN_PATH}`, express.static(path.join(SITE_ROOT, 'admin')));
 
 // Todos os domínios (apex, api., membros.) caem NESTE mesmo app, que roteia por
 // CAMINHO — não por host. Sem isto, abrir membros.webcloneai.com.br servia a
@@ -949,7 +976,7 @@ app.get('/', (req, res, next) => {
 });
 
 app.get('/',                (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/index.html')));
-app.get('/admin',           (_req, res) => res.sendFile(path.join(SITE_ROOT, 'admin/index.html')));
+app.get(`/${ADMIN_PATH}`,   (_req, res) => res.sendFile(path.join(SITE_ROOT, 'admin/index.html')));
 app.get('/lp',              (_req, res) => res.sendFile(path.join(SITE_ROOT, 'landing/index.html')));
 app.get('/membros',         (_req, res) => res.sendFile(path.join(SITE_ROOT, 'members/index.html')));
 app.get('/obrigado',        (_req, res) => res.sendFile(path.join(SITE_ROOT, 'checkout/obrigado.html')));

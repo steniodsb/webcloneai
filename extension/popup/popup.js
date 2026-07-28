@@ -49,7 +49,7 @@ async function boot() {
   // 2. Verificar assinatura
   let sub;
   try {
-    sub = await WCA_Auth.checkSubscription(session.userId, session.accessToken);
+    sub = await WCA_Auth.checkSubscription(session.userId, session.accessToken, 'open');
   } catch (e) {
     // Sem conexão ou erro do Supabase — mostra tela de erro suave
     showScreen('loginScreen');
@@ -92,7 +92,7 @@ function initLoginScreen() {
     setLoginError('');
     try {
       const session = await WCA_Auth.signIn(email, password);
-      const sub = await WCA_Auth.checkSubscription(session.userId, session.accessToken);
+      const sub = await WCA_Auth.checkSubscription(session.userId, session.accessToken, 'open');
       if (sub.status !== 'active') {
         showScreen('noSubScreen');
         return;
@@ -279,7 +279,7 @@ class WebClonerAI {
     try {
       const session = await WCA_Auth.getSession();
       if (!session) { showScreen('loginScreen'); return this._endRun(); }
-      const sub = await WCA_Auth.checkSubscription(session.userId, session.accessToken);
+      const sub = await WCA_Auth.checkSubscription(session.userId, session.accessToken, 'export');
       if (sub.status !== 'active') { showScreen('noSubScreen'); return this._endRun(); }
     } catch {
       this._showStatus('Falha ao verificar a assinatura. Verifique sua conexão.', 'err');

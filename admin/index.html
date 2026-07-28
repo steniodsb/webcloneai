@@ -110,8 +110,8 @@ select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--li
         <div class="stat"><div class="k">Inativos</div><div class="v" id="stInactive">—</div></div>
       </div>
       <table>
-        <thead><tr><th>E-mail</th><th>Plano</th><th>Status</th><th>Ações</th></tr></thead>
-        <tbody id="subsBody"><tr><td colspan="4" class="empty">Carregando…</td></tr></tbody>
+        <thead><tr><th>E-mail</th><th>Status</th><th>Último login</th><th>Usou a extensão</th><th>Clonagens</th><th>Ações</th></tr></thead>
+        <tbody id="subsBody"><tr><td colspan="6" class="empty">Carregando…</td></tr></tbody>
       </table>
     </section>
 
@@ -178,6 +178,14 @@ let TOKEN = localStorage.getItem('wca_admin_token') || '';
 const $ = id => document.getElementById(id);
 function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2600); }
 function money(v){ return 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+// "há 2 dias" diz mais que uma data solta quando o que importa é se a pessoa
+// sumiu. Nunca usado? deixa explícito — é o sinal de quem comprou e não usou.
+function desde(iso){
+  if(!iso) return '<span class="mut">nunca</span>';
+  var d=Math.floor((Date.now()-new Date(iso))/86400000);
+  var t = d<=0 ? 'hoje' : d===1 ? 'ontem' : 'há '+d+' dias';
+  return t + '<div class="mut">'+fmtDate(iso)+'</div>';
+}
 function fmtDate(d){ if(!d) return '—'; try{ return new Date(d).toLocaleDateString('pt-BR'); }catch{ return '—'; } }
 
 async function api(path, opts={}){
@@ -230,20 +238,23 @@ async function loadSubs(){
     $('stTotal').textContent = subscribers.length;
     $('stActive').textContent = subscribers.filter(s=>s.status==='active').length;
     $('stInactive').textContent = subscribers.filter(s=>s.status!=='active').length;
-    if(!subscribers.length){ body.innerHTML='<tr><td colspan="4" class="empty">Nenhum assinante ainda.</td></tr>'; return; }
+    if(!subscribers.length){ body.innerHTML='<tr><td colspan="6" class="empty">Nenhum assinante ainda.</td></tr>'; return; }
     body.innerHTML = subscribers.map(s => {
       const active = s.status==='active';
+      const plano = s.plan==='lifetime'?'Vitalício':(s.plan||'—');
       return `<tr>
-        <td>${s.email || '<span class="mut">sem e-mail</span>'}<div class="mut">${fmtDate(s.created_at)}</div></td>
-        <td>${s.plan==='lifetime'?'Vitalício':(s.plan||'—')}</td>
-        <td><span class="pill ${active?'active':'inactive'}">${active?'ativo':'inativo'}</span></td>
+        <td>${s.email || '<span class="mut">sem e-mail</span>'}<div class="mut">${plano} · entrou ${fmtDate(s.created_at)}</div></td>
+        <td><span class="pill ${active?'active':'inactive'}">${active?'ativo':(s.status||'inativo')}</span></td>
+        <td>${desde(s.last_sign_in_at)}</td>
+        <td>${desde(s.last_seen_at)}</td>
+        <td>${s.exports_count ? s.exports_count + (s.last_export_at ? `<div class="mut">${desde(s.last_export_at)}</div>` : '') : '<span class="mut">—</span>'}</td>
         <td><div class="row-actions">
           <button class="btn btn-s" data-act="toggle" data-id="${s.id}" data-status="${active?'inactive':'active'}">${active?'Desativar':'Ativar'}</button>
           <button class="btn btn-s" data-act="resend" data-id="${s.id}">Reenviar e-mail</button>
         </div></td>
       </tr>`;
     }).join('');
-  }catch(err){ body.innerHTML=`<tr><td colspan="4" class="empty">${err.message}</td></tr>`; }
+  }catch(err){ body.innerHTML=`<tr><td colspan="6" class="empty">${err.message}</td></tr>`; }
 }
 
 $('subsBody').addEventListener('click', async e => {

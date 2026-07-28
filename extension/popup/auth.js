@@ -90,9 +90,10 @@ async function _refreshSession(refreshToken) {
 // um cancelamento/estorno tira o acesso mesmo se o webhook tiver falhado.
 // Se a API estiver fora, cai na leitura direta do Supabase (que continua exigindo
 // assinatura ativa) para não trancar quem pagou por causa de instabilidade nossa.
-async function wca_checkSubscription(userId, accessToken) {
+async function wca_checkSubscription(userId, accessToken, ctx) {
   try {
-    const res = await fetch(`${WCA_CONFIG.apiUrl}/api/access/verify`, {
+    const q = ctx ? `?ctx=${encodeURIComponent(ctx)}` : '';
+    const res = await fetch(`${WCA_CONFIG.apiUrl}/api/access/verify${q}`, {
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     if (res.ok) {
