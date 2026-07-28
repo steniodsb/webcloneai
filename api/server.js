@@ -492,7 +492,6 @@ app.post('/api/webhook/asaas', express.json(), async (req, res) => {
       case 'PAYMENT_CHARGEBACK_REQUESTED':
       case 'PAYMENT_CHARGEBACK_DISPUTE':
       case 'PAYMENT_AWAITING_CHARGEBACK_REVERSAL':
-      case 'PAYMENT_REVERSED':
       case 'PAYMENT_DELETED': {
         const { payment } = event;
         if (payment?.customer) {
@@ -509,8 +508,10 @@ app.post('/api/webhook/asaas', express.json(), async (req, res) => {
         break;
       }
 
-      // Chargeback revertido / cobrança restaurada — devolve o acesso
-      case 'PAYMENT_CHARGEBACK_REVERSED':
+      // Cobrança restaurada — devolve o acesso.
+      // (Não existe PAYMENT_CHARGEBACK_REVERSED no Asaas: a API rejeita esse
+      //  evento como inválido. A volta de um chargeback ganho chega como
+      //  PAYMENT_RECEIVED/RESTORED.)
       case 'PAYMENT_RESTORED': {
         const { payment } = event;
         if (payment?.customer) await activateSubscription(payment.customer);
@@ -519,8 +520,7 @@ app.post('/api/webhook/asaas', express.json(), async (req, res) => {
 
       // Assinatura cancelada ou expirada
       case 'SUBSCRIPTION_DELETED':
-      case 'SUBSCRIPTION_INACTIVATED':
-      case 'SUBSCRIPTION_EXPIRED': {
+      case 'SUBSCRIPTION_INACTIVATED': {
         const { subscription } = event;
         if (subscription?.customer) {
           await deactivateSubscription(subscription.customer, 'expired');
