@@ -542,9 +542,33 @@ function shot(s){
  if(/\.mp4$/i.test(s[1])) return '<div class="shot"><video src="'+s[1]+'" autoplay muted loop playsinline preload="metadata"></video></div>';
  return '<div class="shot"><img src="'+s[1]+'" alt="'+s[0]+'" loading="lazy"></div>';
 }
-document.getElementById('shots').innerHTML=(SHOTS.map(shot).join('')).repeat(2);
-/* autoplay via innerHTML nem sempre dispara: força o play (silencioso) */
-document.querySelectorAll('#shots video').forEach(function(v){v.muted=true;v.playsInline=true;var p=v.play();if(p&&p.catch)p.catch(function(){});});
+/* O carrossel de sites capturados pesa ~24 MB (tem GIF animado de 3,8 MB ali
+   dentro), e fica bem abaixo da dobra. Montar isso no load fazia o navegador
+   baixar e DECODIFICAR tudo enquanto a hero ainda estava pintando — GIF animado
+   decodifica na main thread sem parar, o que sozinho explica a maior parte do
+   travamento medido pelo PageSpeed. Agora só monta quando chega perto da tela. */
+(function(){
+ var alvo=document.getElementById('shots');
+ if(!alvo) return;
+ function montar(){
+   alvo.innerHTML=(SHOTS.map(shot).join('')).repeat(2);
+   /* autoplay via innerHTML nem sempre dispara: força o play (silencioso) */
+   alvo.querySelectorAll('video').forEach(function(v){v.muted=true;v.playsInline=true;var p=v.play();if(p&&p.catch)p.catch(function(){});});
+ }
+ /* Checagem por scroll em vez de IntersectionObserver: o #shots vazio tem
+    altura zero e a seção nem sempre reporta interseção a tempo. Isto é
+    síncrono, previsível e não depende de callback de layout. */
+ var secao = alvo.closest('section') || alvo.parentNode || alvo;
+ function perto(){ return secao.getBoundingClientRect().top < innerHeight + 400; }
+ function checar(){
+   if(!perto()) return;
+   removeEventListener('scroll', checar); removeEventListener('resize', checar);
+   montar();
+ }
+ addEventListener('scroll', checar, {passive:true});
+ addEventListener('resize', checar, {passive:true});
+ checar();   /* já visível no primeiro paint? monta na hora */
+})();
 
 
 /* ── LIGHT PILLAR (fundo da hero) ─────────────────────────────────────────────
@@ -559,6 +583,14 @@ document.querySelectorAll('#shots video').forEach(function(v){v.muted=true;v.pla
   function desistir(){ hero.classList.add('pillar-off'); cv.style.display='none'; }
 
   if (matchMedia('(prefers-reduced-motion:reduce)').matches) return desistir();
+
+  /* Aparelho fraco não roda isto. Um raymarch de dezenas de iterações por pixel
+     depende de GPU decente; onde não há (celular de entrada, e o próprio
+     laboratório do PageSpeed, que renderiza WebGL por software) o custo vai
+     todo para a CPU e trava a página. Nesses casos fica o feixe CSS. */
+  var nucleos = navigator.hardwareConcurrency || 4;
+  var memoria = navigator.deviceMemory || 4;
+  if (nucleos <= 4 || memoria <= 4) return desistir();
 
   var gl = cv.getContext('webgl',{antialias:false,alpha:true,powerPreference:'high-performance'})
         || cv.getContext('experimental-webgl');
