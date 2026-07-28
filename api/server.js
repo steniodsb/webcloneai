@@ -248,7 +248,14 @@ async function createSupabaseUser(email, plan, asaasCustomerId, asaasPaymentId) 
   try {
     await sendAccessEmail(email, password);
   } catch (e) {
-    console.error('[email] falha ao enviar acesso:', e.message);
+    // O provisionamento não pode cair por causa do e-mail, mas o cliente pagou e
+    // ficou sem acesso — a senha só existia aqui e já foi descartada. Grita alto
+    // com o e-mail e o pagamento para dar de achar no log e reenviar pelo admin.
+    console.error(
+      `[email] *** CLIENTE SEM ACESSO *** ${email} pagou (${asaasPaymentId}) e o ` +
+      `e-mail de acesso NAO saiu: ${e.message} — reenvie pelo painel admin, que ` +
+      `redefine a senha e manda de novo.`
+    );
   }
 
   return userId;
@@ -673,8 +680,16 @@ app.post('/api/admin/subscribers/:id/resend', requireAdmin, async (req, res) => 
     if (!rows?.length) return res.status(404).json({ error: 'Assinante não encontrado.' });
     const u = await supaAdmin('GET', `/auth/v1/admin/users/${rows[0].user_id}`);
     if (!u?.email) return res.status(404).json({ error: 'E-mail não encontrado.' });
-    await sendAccessEmail(u.email);
-    res.json({ ok: true, email: u.email });
+
+    // Reenviar SEM senha manda um e-mail que não resolve nada: a senha original
+    // é gerada, usada para criar o usuário e descartada — ninguém mais a conhece.
+    // Quem precisa de reenvio é justamente quem nunca conseguiu entrar, então
+    // aqui a gente redefine para uma senha nova e manda ela.
+    const password = generatePassword();
+    await supaAdmin('PUT', `/auth/v1/admin/users/${rows[0].user_id}`, { password });
+    await sendAccessEmail(u.email, password);
+
+    res.json({ ok: true, email: u.email, senhaRedefinida: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
