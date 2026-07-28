@@ -22,6 +22,7 @@
   --serif:'Urbanist',-apple-system,Segoe UI,Roboto,sans-serif;--sans:'Urbanist',-apple-system,Segoe UI,Roboto,sans-serif;
 }
 *{box-sizing:border-box}
+.hidden{display:none!important}
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:#fff;font-family:var(--sans);overflow-x:hidden;-webkit-font-smoothing:antialiased}
 img{max-width:100%;display:block}a{color:inherit;text-decoration:none}
@@ -127,6 +128,34 @@ nav .links a:hover{color:#fff}
 .vid{position:relative;aspect-ratio:16/9;background:#0a0b0e;overflow:hidden}
 .vid .vid-poster,.vid iframe{position:absolute;inset:0;width:100%;height:100%;display:block;border:0}
 .vid .vid-poster{object-fit:cover}
+
+/* Escudo por cima do iframe: sem ele o YouTube reexibe título, avatar e
+   "Assistir no YouTube" a cada hover, mesmo com controls=0. Também é ele que
+   recebe o clique de play/pause. */
+.vid-shield{position:absolute;inset:0;z-index:2;cursor:pointer}
+.vid.playing .vid-shield{display:block}
+.vid:not(.playing) .vid-shield{display:none}
+
+/* Controles próprios */
+.vid-ui{position:absolute;left:0;right:0;bottom:0;z-index:3;display:none;align-items:center;gap:12px;
+ padding:14px 16px;background:linear-gradient(0deg,rgba(6,7,9,.86),rgba(6,7,9,.42) 62%,transparent);
+ opacity:0;transition:opacity .25s}
+.vid.playing .vid-ui{display:flex}
+.vid.playing:hover .vid-ui,.vid.playing.paused .vid-ui,.vid-ui:focus-within{opacity:1}
+.vid-btn{flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+ background:none;border:0;border-radius:9px;color:rgba(255,255,255,.9);cursor:pointer;transition:background .15s,color .15s}
+.vid-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+.vid-btn:focus-visible{outline:2px solid var(--s2);outline-offset:-2px}
+.vid-btn svg{width:17px;height:17px;fill:currentColor}
+.vid-track{flex:1;height:16px;display:flex;align-items:center;cursor:pointer}
+.vid-rail{width:100%;height:4px;border-radius:99px;background:rgba(255,255,255,.22);overflow:hidden}
+.vid-fill{height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--s4),var(--s1))}
+.vid-time{flex:none;font-size:12px;color:rgba(255,255,255,.72);font-variant-numeric:tabular-nums;letter-spacing:.2px}
+.vid:fullscreen{aspect-ratio:auto;width:100%;height:100%;background:#000}
+/* Em telas de toque nao existe hover: sem isto os controles so apareceriam
+   depois de pausar, e no celular ninguem descobriria que existem. */
+@media (hover:none){.vid.playing .vid-ui{opacity:1}}
+@media(max-width:600px){.vid-time{display:none}}
 .vid-play{position:absolute;inset:0;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
  background:linear-gradient(180deg,rgba(10,11,14,.28),rgba(10,11,14,.62));border:0;cursor:pointer;font-family:inherit;
  transition:background .3s,opacity .3s}
@@ -317,6 +346,24 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
            injetado quando a pessoa decide assistir. -->
       <div class="vid" id="demoVid" data-yt="5Zf_y95I33c">
         <img class="vid-poster" src="/landing/video/demo-poster.webp" alt="" width="1280" height="720">
+        <div class="vid-shield" id="vidShield"></div>
+        <div class="vid-ui" id="vidUI">
+          <button class="vid-btn" id="vidToggle" type="button" aria-label="Pausar">
+            <svg id="vidIconPause" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+            <svg id="vidIconPlay" class="hidden" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <div class="vid-track" id="vidTrack" role="slider" tabindex="0" aria-label="Progresso do vídeo" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="vid-rail"><div class="vid-fill" id="vidFill"></div></div>
+          </div>
+          <span class="vid-time" id="vidTime">0:00 / 0:00</span>
+          <button class="vid-btn" id="vidMute" type="button" aria-label="Silenciar">
+            <svg id="vidIconSound" viewBox="0 0 24 24"><path d="M4 9v6h4l5 5V4L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+            <svg id="vidIconMuted" class="hidden" viewBox="0 0 24 24"><path d="M4 9v6h4l5 5V4L8 9H4zm15 0-1.4-1.4L15 10.2 12.4 7.6 11 9l2.6 2.6L11 14.2l1.4 1.4 2.6-2.6 2.6 2.6L19 14.2l-2.6-2.6L19 9z"/></svg>
+          </button>
+          <button class="vid-btn" id="vidFull" type="button" aria-label="Tela cheia">
+            <svg viewBox="0 0 24 24"><path d="M4 9V4h5v2H6v3H4zm11-5h5v5h-2V6h-3V4zM4 15h2v3h3v2H4v-5zm14 0h2v5h-5v-2h3v-3z"/></svg>
+          </button>
+        </div>
         <button class="vid-play" id="demoPlay" type="button" aria-label="Reproduzir o vídeo de demonstração">
           <span class="play"><svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></span>
           <span class="vid-lbl">Ver a demonstração</span>
@@ -656,27 +703,113 @@ document.querySelectorAll('#shots video').forEach(function(v){v.muted=true;v.pla
  atualiza();
 })();
 
-/* Vídeo de demonstração — fachada.
+/* Vídeo de demonstração — player com controles próprios.
    Antes do clique a página não carrega NADA do YouTube: sem iframe, sem script
-   de terceiro, sem cookie. Deixa o topo leve e evita expor o YouTube para quem
-   só passou os olhos. No clique, injeta o player pelo domínio -nocookie. */
+   de terceiro, sem cookie. No clique injeta o player pelo domínio -nocookie com
+   controls=0 e um escudo por cima: só assim o YouTube para de reexibir título,
+   avatar e "Assistir no YouTube" a cada passada de mouse. Os controles abaixo
+   são nossos, no design do site. */
 (function(){
  var wrap=document.getElementById('demoVid'), b=document.getElementById('demoPlay');
  if(!wrap||!b) return;
- var id=wrap.getAttribute('data-yt');
+ var id=wrap.getAttribute('data-yt'), player=null, timer=0, arrastando=false;
+ var $=function(x){return document.getElementById(x)};
+
+ function mmss(s){ s=Math.max(0,Math.floor(s||0)); return Math.floor(s/60)+':'+('0'+(s%60)).slice(-2); }
+ function icones(tocando){
+   $('vidIconPause').classList.toggle('hidden',!tocando);
+   $('vidIconPlay').classList.toggle('hidden',tocando);
+   $('vidToggle').setAttribute('aria-label',tocando?'Pausar':'Reproduzir');
+   wrap.classList.toggle('paused',!tocando);
+ }
+ function pinta(){
+   if(!player||!player.getDuration) return;
+   var d=player.getDuration()||0, t=player.getCurrentTime()||0;
+   if(!arrastando){ $('vidFill').style.width=(d?(t/d*100):0)+'%';
+     $('vidTrack').setAttribute('aria-valuenow',Math.round(d?t/d*100:0)); }
+   $('vidTime').textContent=mmss(t)+' / '+mmss(d);
+ }
+
+ function carregarAPI(cb){
+   if(window.YT&&window.YT.Player) return cb();
+   var anterior=window.onYouTubeIframeAPIReady;
+   window.onYouTubeIframeAPIReady=function(){ if(typeof anterior==='function') anterior(); cb(); };
+   if(!document.querySelector('script[src*="iframe_api"]')){
+     var sc=document.createElement('script'); sc.src='https://www.youtube.com/iframe_api'; document.head.appendChild(sc);
+   }
+ }
+
  function tocar(){
    if(wrap.classList.contains('playing')) return;
    wrap.classList.add('playing');
-   var f=document.createElement('iframe');
-   f.src='https://www.youtube-nocookie.com/embed/'+id+
-         '?autoplay=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&color=white';
-   f.title='Demonstração';
-   f.allow='accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share';
-   f.allowFullscreen=true;
-   f.referrerPolicy='strict-origin-when-cross-origin';
-   wrap.appendChild(f);
+   var alvo=document.createElement('div'); alvo.id='ytHost'; wrap.insertBefore(alvo, wrap.firstChild);
+   carregarAPI(function(){
+     player=new YT.Player('ytHost',{
+       videoId:id, host:'https://www.youtube-nocookie.com',
+       playerVars:{autoplay:1,controls:0,disablekb:1,rel:0,modestbranding:1,
+                   iv_load_policy:3,playsinline:1,fs:0,origin:location.origin},
+       events:{
+         onReady:function(e){ e.target.playVideo(); icones(true); timer=setInterval(pinta,250); },
+         onStateChange:function(e){
+           if(e.data===YT.PlayerState.PLAYING) icones(true);
+           if(e.data===YT.PlayerState.PAUSED)  icones(false);
+           if(e.data===YT.PlayerState.ENDED){ icones(false); voltarCapa(); }
+         }
+       }
+     });
+   });
  }
+ function voltarCapa(){
+   clearInterval(timer); timer=0;
+   if(player&&player.destroy) player.destroy();
+   player=null;
+   var h=document.getElementById('ytHost'); if(h) h.remove();
+   var f=wrap.querySelector('iframe'); if(f) f.remove();
+   wrap.classList.remove('playing','paused');
+   $('vidFill').style.width='0';
+ }
+ function alternar(){
+   if(!player) return;
+   var st=player.getPlayerState();
+   if(st===YT.PlayerState.PLAYING) player.pauseVideo(); else player.playVideo();
+ }
+
  b.addEventListener('click',tocar);
+ $('vidShield').addEventListener('click',alternar);
+ $('vidToggle').addEventListener('click',function(e){ e.stopPropagation(); alternar(); });
+
+ $('vidMute').addEventListener('click',function(e){
+   e.stopPropagation(); if(!player) return;
+   var m=player.isMuted(); m?player.unMute():player.mute();
+   $('vidIconSound').classList.toggle('hidden',!m);
+   $('vidIconMuted').classList.toggle('hidden',m);
+   this.setAttribute('aria-label',m?'Silenciar':'Ativar som');
+ });
+
+ $('vidFull').addEventListener('click',function(e){
+   e.stopPropagation();
+   if(document.fullscreenElement) document.exitFullscreen();
+   else if(wrap.requestFullscreen) wrap.requestFullscreen();
+ });
+
+ function buscar(ev){
+   if(!player||!player.getDuration) return;
+   var r=$('vidTrack').getBoundingClientRect();
+   var x=((ev.touches?ev.touches[0].clientX:ev.clientX)-r.left)/r.width;
+   x=Math.min(1,Math.max(0,x));
+   $('vidFill').style.width=(x*100)+'%';
+   player.seekTo(player.getDuration()*x,true);
+ }
+ $('vidTrack').addEventListener('click',function(e){ e.stopPropagation(); buscar(e); });
+ $('vidTrack').addEventListener('mousedown',function(e){ e.stopPropagation(); arrastando=true; buscar(e); });
+ addEventListener('mousemove',function(e){ if(arrastando) buscar(e); });
+ addEventListener('mouseup',function(){ arrastando=false; });
+ $('vidTrack').addEventListener('keydown',function(e){
+   if(!player) return;
+   if(e.key==='ArrowRight'){ player.seekTo(player.getCurrentTime()+5,true); e.preventDefault(); }
+   if(e.key==='ArrowLeft'){ player.seekTo(Math.max(0,player.getCurrentTime()-5),true); e.preventDefault(); }
+ });
+
  /* o botão "Ver a demo" do topo rola até aqui e já inicia */
  document.querySelectorAll('a[href="#demo"]').forEach(function(a){
    a.addEventListener('click',function(){ setTimeout(tocar,700); });
