@@ -291,16 +291,23 @@ async function deactivateSubscription(asaasCustomerId, status = 'inactive') {
 
 // Estados de pagamento que DÃO acesso e que TIRAM acesso
 const PAID_STATUSES    = new Set(['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH', 'DUNNING_RECEIVED']);
-const REVOKED_STATUSES = new Set([
-  'REFUNDED', 'REFUND_REQUESTED', 'REFUND_IN_PROGRESS',
+const CHARGEBACK_STATUSES = new Set([
   'CHARGEBACK_REQUESTED', 'CHARGEBACK_DISPUTE', 'AWAITING_CHARGEBACK_REVERSAL',
 ]);
 
 // Decide o acesso a partir da lista de pagamentos do customer no Asaas.
-// Um estorno/chargeback em qualquer cobrança revoga — vale mais que um pago.
+//
+// A regra "qualquer estorno revoga" estava errada: quem comprou, foi estornado
+// e comprou de NOVO ficava bloqueado para sempre. E ela era desnecessária —
+// quando o Asaas estorna, aquela cobrança passa a figurar como REFUNDED, então
+// ela simplesmente deixa de contar como paga. Basta perguntar se sobrou alguma
+// cobrança paga agora.
+//
+// Chargeback continua revogando de imediato: ali existe disputa em curso, e o
+// prudente é cortar o acesso enquanto ela não se resolve.
 function decidePaymentAccess(list) {
-  if (list.some(p => REVOKED_STATUSES.has(p.status))) return { active: false, reason: 'refunded_or_chargeback' };
-  if (list.some(p => PAID_STATUSES.has(p.status)))    return { active: true,  reason: 'payment_confirmed' };
+  if (list.some(p => CHARGEBACK_STATUSES.has(p.status))) return { active: false, reason: 'chargeback' };
+  if (list.some(p => PAID_STATUSES.has(p.status)))       return { active: true,  reason: 'payment_confirmed' };
   return { active: false, reason: 'no_paid_payment' };
 }
 
@@ -365,6 +372,23 @@ async function resolveAccess(userId) {
   }
 
   return { active: state.active, status: wanted, plan: sub.plan, reason: state.reason };
+}
+
+// Reconcilia o status de um cliente contra o Asaas (a fonte da verdade), em vez
+// de confiar num único evento isolado.
+async function reconcileByCustomer(customerId) {
+  _accessCache.delete(customerId);
+  let estado;
+  try {
+    const r = await asaas('GET', `/payments?customer=${encodeURIComponent(customerId)}&limit=100`);
+    estado = decidePaymentAccess(r.data || []);
+  } catch (e) {
+    console.error('[reconcile] Asaas indisponível, mantendo como está:', e.message);
+    return;
+  }
+  const alvo = estado.active ? 'active' : 'inactive';
+  await supaAdmin('PATCH', `/rest/v1/subscriptions?asaas_customer_id=eq.${customerId}`, [{ status: alvo }]);
+  console.log(`[reconcile] ${customerId} -> ${alvo} (${estado.reason})`);
 }
 
 // Identifica o usuário pelo JWT do Supabase mandado pelo cliente
@@ -501,10 +525,14 @@ app.post('/api/webhook/asaas', express.json(), async (req, res) => {
         break;
       }
 
-      // Mensalidade vencida — corta o acesso até voltar a pagar
+      // Cobrança vencida. NÃO pode simplesmente cortar: deactivateSubscription
+      // age por CLIENTE, então um PIX antigo que o cliente abandonou derrubava
+      // a compra que ele fez depois — foi exatamente o que aconteceu com um
+      // cliente real. Aqui a gente reconcilia contra o Asaas: se sobrou alguma
+      // cobrança paga, o acesso fica de pé.
       case 'PAYMENT_OVERDUE': {
         const { payment } = event;
-        if (payment?.customer) await deactivateSubscription(payment.customer, 'expired');
+        if (payment?.customer) await reconcileByCustomer(payment.customer);
         break;
       }
 
