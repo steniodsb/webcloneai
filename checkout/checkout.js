@@ -20,19 +20,42 @@ function lerAtribuicao(){
 
 
 // Manda para a página de obrigado, que é quem dispara o Purchase.
-function irParaObrigado(email) {
+// O paymentId vai como "p" e vira o eventID do Purchase. É obrigatório: o
+// servidor manda o mesmo Purchase pela Conversions API usando o paymentId como
+// event_id, e sem os dois baterem o Meta conta a mesma venda duas vezes.
+function irParaObrigado(email, paymentId) {
   const q = new URLSearchParams({ v: String(VALOR) });
-  if (email) q.set('e', email);
+  if (email)     q.set('e', email);
+  if (paymentId) q.set('p', paymentId);
   setTimeout(() => { location.href = '/obrigado?' + q.toString(); }, 900);
+}
+
+// Dados do produto repetidos em todo evento: sem value/currency o gerenciador
+// mostra a contagem mas não o valor, e aí não dá para ler ROAS por criativo.
+const DADOS_PIXEL = {
+  value: VALOR, currency: 'BRL', content_name: 'Web Clone AI',
+  content_ids: ['web-clone-ai'], content_type: 'product',
+};
+
+// Um evento por visita. O checkout é uma página só (o PIX aparece sem recarregar),
+// então sem esta trava um retry depois de erro de cartão contaria de novo.
+const _jaEnviado = new Set();
+function pixel(evento, extra) {
+  if (!window.fbq || _jaEnviado.has(evento)) return;
+  _jaEnviado.add(evento);
+  fbq('track', evento, Object.assign({}, DADOS_PIXEL, extra || {}));
 }
 
 // Quem abriu o checkout demonstrou intenção de compra — é este evento que o
 // Meta usa para achar mais gente parecida.
-if (window.fbq) fbq('track', 'InitiateCheckout', { value: VALOR, currency: 'BRL', content_name: 'Web Clone AI' });
+pixel('InitiateCheckout');
 
 // ─── Estado ──────────────────────────────────────────────────────────────────
 let currentPlan    = 'lifetime';
 let currentPayment = 'pix';
+// Guardado na criação da cobrança porque o "já paguei" do PIX acontece depois,
+// fora do escopo da resposta, e também precisa do id para deduplicar o Purchase.
+let paymentIdAtual = null;
 
 const PLANS = {
   monthly:  { name: 'Acesso Mensal',   price: 29.90, label: 'R$29,90', period: 'por mês' },
@@ -136,6 +159,11 @@ document.getElementById('checkoutForm').addEventListener('submit', async functio
     }
     if (aceite) aceite.closest('.aceite').classList.remove('faltando');
 
+    // Passou da validação e do aceite: nome, e-mail e CPF válidos, método
+    // escolhido. É a intenção mais forte antes do pagamento em si — e a única
+    // etapa que separa quem só abriu o checkout de quem realmente tentou pagar.
+    pixel('AddPaymentInfo', { payment_method: currentPayment });
+
     const payload = {
       plan:          currentPlan,
       paymentMethod: currentPayment,
@@ -165,6 +193,7 @@ document.getElementById('checkoutForm').addEventListener('submit', async functio
 
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erro ao processar pagamento.');
+    paymentIdAtual = data.paymentId || null;
 
     if (currentPayment === 'pix') {
       showPixResult(data);
@@ -174,7 +203,7 @@ document.getElementById('checkoutForm').addEventListener('submit', async functio
         document.getElementById('checkoutForm').style.display = 'none';
         // O Purchase dispara na /obrigado, não aqui — senão a mesma venda seria
         // contada duas vezes no gerenciador de anúncios.
-        irParaObrigado(email);
+        irParaObrigado(email, data.paymentId);
       } else {
         throw new Error('Pagamento não confirmado. Tente novamente ou use PIX.');
       }
@@ -229,6 +258,19 @@ function showPixResult(data) {
   `;
   pixResult.classList.add('show');
 
+  // O QR está na tela. Este é o maior vazamento do funil: gera PIX, sai para o
+  // app do banco e não volta. Sem um evento aqui não há como medir a conversão
+  // PIX gerado → PIX pago por criativo — Purchase sozinho não distingue quem
+  // desistiu no banco de quem nunca chegou a gerar cobrança.
+  // Evento próprio (não padrão) porque nenhum evento do Meta descreve isto.
+  if (window.fbq && !_jaEnviado.has('PixGerado')) {
+    _jaEnviado.add('PixGerado');
+    fbq('trackCustom', 'PixGerado', Object.assign({}, DADOS_PIXEL, {
+      // orderId permite cruzar com a Utmify e com o Asaas caso um número não feche
+      order_id: data.paymentId || null,
+    }));
+  }
+
   const email = document.getElementById('email').value.trim();
   setTimeout(() => {
     const btn = document.getElementById('checkAccessBtn');
@@ -253,7 +295,7 @@ async function verifyAccess(email) {
       msg.className = 'form-msg ok';
       msg.textContent = '✅ Pagamento confirmado! Redirecionando…';
       btn.style.display = 'none';
-      irParaObrigado(email);
+      irParaObrigado(email, paymentIdAtual);
     } else {
       msg.className = 'form-msg err';
       msg.textContent = 'Pagamento ainda não confirmado. Aguarde alguns instantes e tente novamente.';

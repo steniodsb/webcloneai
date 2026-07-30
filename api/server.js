@@ -642,6 +642,9 @@ app.post('/api/checkout', async (req, res) => {
     res.json({
       status:     payment.status,
       invoiceUrl: payment.invoiceUrl,
+      // O front usa como event_id do pixel e como order_id: é a mesma chave que
+      // a Utmify e a Conversions API usam, então os três relatórios fecham.
+      paymentId:  payment.id,
       ...pix,
     });
 

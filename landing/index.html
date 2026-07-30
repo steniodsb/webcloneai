@@ -873,6 +873,54 @@ document.querySelectorAll('.rv').forEach(function(e){io.observe(e)});
  }catch(e){}
 })();
 
+/* ── Funil no pixel ──────────────────────────────────────────────────────────
+   O PageView só diz que a página abriu — não separa quem passou 2 segundos de
+   quem leu a oferta. Estes dois eventos marcam as etapas reais antes do
+   checkout, para dar ao Meta sinal intermediário enquanto as vendas ainda são
+   poucas demais para ele aprender só com Purchase.
+
+   ViewContent  = chegou na seção de preço (leu a oferta, não só abriu o site)
+   AddToCart    = clicou no botão de compra
+   O par revela quantos leem o preço e não clicam — o que Purchase nunca mostra. */
+(function(){
+ if(!window.fbq) return;
+ var DADOS={ value:29.90, currency:'BRL', content_name:'Web Clone AI',
+             content_ids:['web-clone-ai'], content_type:'product' };
+
+ // Um disparo por visita. Contar duas vezes o mesmo visitante infla o topo do
+ // funil e faz a taxa "viu preço → clicou" parecer pior do que é.
+ var enviados={};
+ function pixel(evento){
+  if(enviados[evento]) return;
+  enviados[evento]=1;
+  fbq('track',evento,DADOS);
+ }
+
+ var preco=document.getElementById('preco');
+ if(preco){
+  // threshold 0 + rootMargin em vez de uma fração da seção: no mobile o bloco de
+  // preço fica mais alto que a tela, e exigir "35% dele visível" nunca se
+  // cumpriria — o evento morreria calado justamente onde está quase todo o
+  // tráfego. Assim dispara quando a seção entra nos 75% de cima da tela,
+  // independente da altura dela.
+  var ob=new IntersectionObserver(function(es){
+   es.forEach(function(e){
+    if(!e.isIntersecting) return;
+    ob.unobserve(e.target);
+    pixel('ViewContent');
+   });
+  },{threshold:0,rootMargin:'0px 0px -25% 0px'});
+  ob.observe(preco);
+ }
+
+ // Captura por delegação: os CTAs são vários e alguns só levam à ancora #preco.
+ // Só conta como AddToCart quem vai de fato para o checkout.
+ addEventListener('click',function(e){
+  var a=e.target.closest && e.target.closest('a[href*="/checkout"]');
+  if(a) pixel('AddToCart');
+ },{passive:true,capture:true});
+})();
+
 var nav=document.getElementById('nav');addEventListener('scroll',function(){nav.classList.toggle('scr',scrollY>20)},{passive:true});
 var g1=document.getElementById('g1');
 addEventListener('mousemove',function(e){var x=(e.clientX/innerWidth-.5),y=(e.clientY/innerHeight-.5);
