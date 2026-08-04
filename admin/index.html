@@ -38,6 +38,10 @@ header .brand small{color:var(--t3);font-weight:500;margin-left:8px}
 .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
 .stat .k{color:var(--t3);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
 .stat .v{font-size:28px;font-weight:700;margin-top:6px}
+.stat .sub{color:var(--t3);font-size:12px;margin-top:4px;min-height:15px}
+.sec{font-size:13px;font-weight:600;color:var(--t2);margin:26px 0 12px;text-transform:uppercase;letter-spacing:.5px}
+.sec:first-child{margin-top:0}
+.sec .hint{text-transform:none;letter-spacing:0;color:var(--t3);font-weight:400;margin-left:8px}
 table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 th,td{text-align:left;padding:13px 15px;font-size:13.5px;border-bottom:1px solid var(--line)}
 th{color:var(--t3);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px}
@@ -97,13 +101,44 @@ select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--li
   </header>
   <div class="wrap">
     <div class="tabs">
-      <button class="tab active" data-tab="subs">Assinantes</button>
+      <button class="tab active" data-tab="overview">Visão geral</button>
+      <button class="tab" data-tab="subs">Assinantes</button>
       <button class="tab" data-tab="billing">Faturamento</button>
       <button class="tab" data-tab="members">Área de membros</button>
     </div>
 
+    <!-- Visão geral -->
+    <section id="tab-overview">
+      <h3 class="sec">Usuários ativos <span class="hint">quem abriu a extensão no período</span></h3>
+      <div class="stats">
+        <div class="stat"><div class="k">Hoje (24 h)</div><div class="v" id="ovD">—</div><div class="sub" id="ovDp"></div></div>
+        <div class="stat"><div class="k">Últimos 7 dias</div><div class="v" id="ovW">—</div><div class="sub" id="ovWp"></div></div>
+        <div class="stat"><div class="k">Últimos 30 dias</div><div class="v" id="ovM">—</div><div class="sub" id="ovMp"></div></div>
+      </div>
+
+      <h3 class="sec">Base <span class="hint">quem pagou</span></h3>
+      <div class="stats">
+        <div class="stat"><div class="k">Assinantes ativos</div><div class="v" id="ovAtivos">—</div><div class="sub" id="ovBase"></div></div>
+        <div class="stat"><div class="k">Novos (7 d)</div><div class="v" id="ovNovos">—</div><div class="sub" id="ovNovos30"></div></div>
+        <div class="stat"><div class="k">Ativação</div><div class="v" id="ovAtivacao">—</div><div class="sub">já abriram a extensão ao menos 1×</div></div>
+      </div>
+
+      <h3 class="sec">Clonagens</h3>
+      <div class="stats">
+        <div class="stat"><div class="k">Total</div><div class="v" id="ovClones">—</div><div class="sub">desde o início</div></div>
+        <div class="stat"><div class="k">Clonaram (7 d)</div><div class="v" id="ovC7">—</div><div class="sub">assinantes distintos</div></div>
+        <div class="stat"><div class="k">Clonaram (30 d)</div><div class="v" id="ovC30">—</div><div class="sub">assinantes distintos</div></div>
+      </div>
+
+      <h3 class="sec">Compraram e nunca usaram <span class="hint">risco de reembolso</span></h3>
+      <table>
+        <thead><tr><th>E-mail</th><th>Entrou</th><th>Último login</th><th>Ações</th></tr></thead>
+        <tbody id="ovDead"><tr><td colspan="4" class="empty">Carregando…</td></tr></tbody>
+      </table>
+    </section>
+
     <!-- Assinantes -->
-    <section id="tab-subs">
+    <section id="tab-subs" class="hidden">
       <div class="stats">
         <div class="stat"><div class="k">Assinantes</div><div class="v" id="stTotal">—</div></div>
         <div class="stat"><div class="k">Ativos</div><div class="v" id="stActive">—</div></div>
@@ -225,10 +260,43 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');
   const tab=t.dataset.tab;
-  ['subs','billing','members'].forEach(name => $('tab-'+name).classList.toggle('hidden', name!==tab));
+  ['overview','subs','billing','members'].forEach(name => $('tab-'+name).classList.toggle('hidden', name!==tab));
+  if(tab==='overview') loadOverview();
+  if(tab==='subs') loadSubs();
   if(tab==='billing') loadBilling();
   if(tab==='members') loadMembersAdmin();
 }));
+
+// ---- Visão geral ----
+// "Assinante ativo" é quem pagou. Usuário ativo é quem abriu a extensão. Os dois
+// números só coincidem num mundo ideal — a diferença entre eles é o que dá para
+// consertar, então o painel mostra os dois lado a lado.
+async function loadOverview(){
+  const dead=$('ovDead');
+  try{
+    const d = await api('/api/admin/overview');
+    const pct = n => d.ativos ? Math.round(n/d.ativos*100)+'% dos ativos' : '';
+    $('ovD').textContent=d.ativos24h;  $('ovDp').textContent=pct(d.ativos24h);
+    $('ovW').textContent=d.ativos7d;   $('ovWp').textContent=pct(d.ativos7d);
+    $('ovM').textContent=d.ativos30d;  $('ovMp').textContent=pct(d.ativos30d);
+    $('ovAtivos').textContent=d.ativos;
+    $('ovBase').textContent=`${d.assinantes} no total · ${d.inativos} inativo${d.inativos===1?'':'s'}`;
+    $('ovNovos').textContent=d.novos7d;
+    $('ovNovos30').textContent=`${d.novos30d} nos últimos 30 dias`;
+    $('ovAtivacao').textContent=d.ativacao+'%';
+    $('ovClones').textContent=d.clonagens;
+    $('ovC7').textContent=d.clonaram7d;
+    $('ovC30').textContent=d.clonaram30d;
+
+    if(!d.nuncaUsaram.length){ dead.innerHTML='<tr><td colspan="4" class="empty">Todo mundo que pagou já abriu a extensão. 🎉</td></tr>'; return; }
+    dead.innerHTML = d.nuncaUsaram.map(s=>`<tr>
+      <td>${s.email || '<span class="mut">sem e-mail</span>'}</td>
+      <td>${desde(s.created_at)}</td>
+      <td>${desde(s.last_sign_in_at)}</td>
+      <td><button class="btn btn-s" data-act="resend" data-id="${s.id}">Reenviar acesso</button></td>
+    </tr>`).join('');
+  }catch(err){ dead.innerHTML=`<tr><td colspan="4" class="empty">${err.message}</td></tr>`; }
+}
 
 // ---- Assinantes ----
 async function loadSubs(){
@@ -257,7 +325,8 @@ async function loadSubs(){
   }catch(err){ body.innerHTML=`<tr><td colspan="6" class="empty">${err.message}</td></tr>`; }
 }
 
-$('subsBody').addEventListener('click', async e => {
+// Mesmas ações servem a lista de assinantes e a de "compraram e nunca usaram".
+async function onRowAction(e){
   const btn = e.target.closest('button[data-act]'); if(!btn) return;
   btn.disabled=true; const old=btn.textContent; btn.textContent='…';
   try{
@@ -269,7 +338,9 @@ $('subsBody').addEventListener('click', async e => {
       toast('E-mail reenviado para '+(r.email||'o cliente')+'.'); btn.disabled=false; btn.textContent=old;
     }
   }catch(err){ toast(err.message); btn.disabled=false; btn.textContent=old; }
-});
+}
+$('subsBody').addEventListener('click', onRowAction);
+$('ovDead').addEventListener('click', onRowAction);
 
 // ---- Faturamento ----
 async function loadBilling(){
@@ -364,7 +435,7 @@ $('lfSave').addEventListener('click', async ()=>{
   finally{ btn.disabled=false; btn.textContent='Salvar'; }
 });
 
-function showApp(){ $('login').classList.add('hidden'); $('app').classList.remove('hidden'); loadSubs(); }
+function showApp(){ $('login').classList.add('hidden'); $('app').classList.remove('hidden'); loadOverview(); }
 
 // auto-entra se já tiver token
 if (TOKEN) showApp();

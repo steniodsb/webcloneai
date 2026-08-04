@@ -880,23 +880,70 @@ app.post('/api/admin/login', (req, res) => {
   res.json({ token: signAdminToken() });
 });
 
+// Assinatura + e-mail + último login numa linha só. Duas fontes (a tabela
+// subscriptions e o auth do Supabase) que a lista e a visão geral consomem igual.
+async function listarAssinantes() {
+  const subs = await supaAdmin('GET', '/rest/v1/subscriptions?select=*');
+  const emails = {}, logins = {};
+  try {
+    const u = await supaAdmin('GET', '/auth/v1/admin/users?per_page=1000');
+    (u.users || u || []).forEach(x => { emails[x.id] = x.email; logins[x.id] = x.last_sign_in_at; });
+  } catch (e) { console.error('[admin] falha ao listar users:', e.message); }
+  return (subs || []).map(s => ({
+    id: s.id, email: emails[s.user_id] || null, plan: s.plan, status: s.status,
+    created_at: s.created_at || null, asaas_customer_id: s.asaas_customer_id,
+    last_sign_in_at: logins[s.user_id] || null,   // último login (área de membros)
+    last_seen_at:    s.last_seen_at   || null,    // última vez que abriu a extensão
+    last_export_at:  s.last_export_at || null,    // última clonagem
+    exports_count:   s.exports_count  || 0,
+  }));
+}
+
 app.get('/api/admin/subscribers', requireAdmin, async (_req, res) => {
   try {
-    const subs = await supaAdmin('GET', '/rest/v1/subscriptions?select=*');
-    const emails = {}, logins = {};
-    try {
-      const u = await supaAdmin('GET', '/auth/v1/admin/users?per_page=1000');
-      (u.users || u || []).forEach(x => { emails[x.id] = x.email; logins[x.id] = x.last_sign_in_at; });
-    } catch (e) { console.error('[admin] falha ao listar users:', e.message); }
-    const rows = (subs || []).map(s => ({
-      id: s.id, email: emails[s.user_id] || null, plan: s.plan, status: s.status,
-      created_at: s.created_at || null, asaas_customer_id: s.asaas_customer_id,
-      last_sign_in_at: logins[s.user_id] || null,   // último login (área de membros)
-      last_seen_at:    s.last_seen_at   || null,    // última vez que abriu a extensão
-      last_export_at:  s.last_export_at || null,    // última clonagem
-      exports_count:   s.exports_count  || 0,
-    }));
+    const rows = await listarAssinantes();
     res.json({ subscribers: rows, total: rows.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Admin: visão geral (quem está de fato usando) ─────────────────────────────
+//
+// "Assinante ativo" é quem pagou; não é a mesma coisa que usuário ativo. Quem
+// compra e nunca abre a extensão é reembolso esperando acontecer, então a conta
+// que importa aqui é uso recente (last_seen_at) e não status de cobrança.
+
+app.get('/api/admin/overview', requireAdmin, async (_req, res) => {
+  try {
+    const rows = await listarAssinantes();
+    const agora = Date.now();
+    const dentro = (iso, dias) => !!iso && (agora - new Date(iso).getTime()) <= dias * 86400000;
+
+    const pagantes = rows.filter(r => r.status === 'active');
+    const usaram   = dias => pagantes.filter(r => dentro(r.last_seen_at, dias)).length;
+    const clonaram = dias => pagantes.filter(r => dentro(r.last_export_at, dias)).length;
+
+    // Comprou, está ativo e nunca abriu a extensão — a lista de resgate.
+    const nuncaUsaram = pagantes
+      .filter(r => !r.last_seen_at)
+      .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0))
+      .map(r => ({ id: r.id, email: r.email, created_at: r.created_at, last_sign_in_at: r.last_sign_in_at }));
+
+    res.json({
+      assinantes:   rows.length,
+      ativos:       pagantes.length,
+      inativos:     rows.length - pagantes.length,
+      ativos24h:    usaram(1),
+      ativos7d:     usaram(7),
+      ativos30d:    usaram(30),
+      clonaram7d:   clonaram(7),
+      clonaram30d:  clonaram(30),
+      clonagens:    rows.reduce((s, r) => s + (r.exports_count || 0), 0),
+      novos7d:      rows.filter(r => dentro(r.created_at, 7)).length,
+      novos30d:     rows.filter(r => dentro(r.created_at, 30)).length,
+      // % dos pagantes que chegaram a abrir a extensão pelo menos uma vez
+      ativacao:     pagantes.length ? Math.round((pagantes.filter(r => r.last_seen_at).length / pagantes.length) * 100) : 0,
+      nuncaUsaram,
+    });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
