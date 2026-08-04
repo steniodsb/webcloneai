@@ -9,6 +9,19 @@
 <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1721076848935263&ev=PageView&noscript=1"/></noscript>
 <!-- End Meta Pixel -->
 
+<!-- Microsoft Clarity — mapa de scroll, mapa de cliques e gravação de sessão.
+     O pixel do Meta diz QUANTOS saíram; o Clarity diz ONDE. Com o volume atual,
+     assistir as gravações ensina mais que qualquer gráfico agregado.
+     Pegue o ID em clarity.microsoft.com → seu projeto → Settings → Overview.
+     Sem ID preenchido este bloco não carrega nada — é seguro subir assim. -->
+<script>(function(c,l,a,r,i,t,y){
+ if(!i||i==='COLE_AQUI_O_ID_DO_CLARITY') return;
+ c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+ t=l.createElement(r);t.async=1;t.src='https://www.clarity.ms/tag/'+i;
+ y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+})(window,document,'clarity','script','COLE_AQUI_O_ID_DO_CLARITY');</script>
+<!-- End Clarity -->
+
 <meta name="description" content="Copie qualquer site em 2 cliques e edite do seu jeito. HTML, CSS, assets, fontes e SVGs organizados numa pasta pronta pra abrir no Cursor, Claude ou ChatGPT.">
 <style>
 @font-face{font-family:'Urbanist';src:url('/landing/fonts/urbanist-latin.woff2') format('woff2');font-weight:100 1000;font-style:normal;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
@@ -74,11 +87,11 @@ nav .links a:hover{color:#fff}
 
 /* ---- HERO ---- */
 .hero{position:relative;padding:132px 0 0;overflow:hidden}
-.pillar{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;
+.rays{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;
  mix-blend-mode:screen;opacity:0;transition:opacity 1.2s ease}
-.pillar.on{opacity:1}
+.rays.on{opacity:1}
 /* Scrim entre a luz e o texto. Sem ele o título cai em cima da parte mais
-   clara da coluna e some; e o piso cinza do shader, somado por mix-blend-mode
+   clara dos raios e some; e o piso cinza do shader, somado por mix-blend-mode
    screen, tira o preto do fundo. Escurece o miolo e deixa a luz respirar nas
    bordas e no topo. */
 .hero::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
@@ -86,7 +99,7 @@ nav .links a:hover{color:#fff}
   radial-gradient(ellipse 62% 46% at 50% 40%, rgba(8,9,11,.90) 0%, rgba(8,9,11,.62) 45%, rgba(8,9,11,0) 78%),
   linear-gradient(180deg, rgba(8,9,11,.55) 0%, rgba(8,9,11,0) 22%, rgba(8,9,11,0) 68%, var(--bg) 100%)}
 /* fallback: sem WebGL o feixe CSS antigo volta */
-.pillar-off .beam{display:block}
+.rays-off .beam{display:block}
 .beam{display:none;position:absolute;top:0;left:50%;transform:translateX(-50%);width:2.5px;height:88%;background:linear-gradient(180deg,transparent,var(--s1) 22%,var(--s3) 62%,transparent);filter:blur(2px);opacity:.8;animation:beamP 4s ease-in-out infinite;z-index:1}
 .beam::after{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:200px;height:100%;background:linear-gradient(180deg,rgba(200,208,220,.14),transparent 70%);filter:blur(38px)}
 @keyframes beamP{0%,100%{opacity:.5}50%{opacity:1}}
@@ -127,7 +140,11 @@ nav .links a:hover{color:#fff}
    carrega vídeo nenhum — o que aparece de imediato é o poster (39 KB). */
 .vid{position:relative;aspect-ratio:16/9;background:#0a0b0e;overflow:hidden}
 .vid .vid-poster,.vid iframe{position:absolute;inset:0;width:100%;height:100%;display:block;border:0}
-.vid .vid-poster{object-fit:cover}
+.vid .vid-poster{object-fit:cover;transition:opacity .35s}
+/* O player é injetado ANTES do poster no DOM e os dois ficam na mesma camada
+   (z-index auto), então sem isto o poster continua por cima: o vídeo toca
+   escondido atrás da capa e a hero parece travada no clique. */
+.vid.playing .vid-poster{opacity:0;pointer-events:none}
 
 /* Escudo por cima do iframe: sem ele o YouTube reexibe título, avatar e
    "Assistir no YouTube" a cada hover, mesmo com controls=0. Também é ele que
@@ -224,6 +241,41 @@ section{position:relative;padding:110px 0}
 .feat h3{font-size:18px;margin:0 0 9px}
 .feat p{margin:0;color:var(--txt2);font-size:13.5px;line-height:1.55}
 
+/* ---- 3 PASSOS ---- */
+.passos{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:58px;text-align:left}
+@media(max-width:960px){.passos{grid-template-columns:1fr}}
+.passo{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:34px 28px 30px}
+/* O número é o elemento gráfico da seção: grande, no gradiente prateado e meio
+   apagado, para guiar a ordem sem competir com o título do passo. */
+.passo .n{position:absolute;top:16px;right:24px;font-size:56px;font-weight:800;line-height:1;
+ background:linear-gradient(140deg,#7d8798,#eef1f5 55%,#7d8798);-webkit-background-clip:text;background-clip:text;
+ -webkit-text-fill-color:transparent;opacity:.28}
+.passo h3{font-size:19px;margin:0 0 10px;padding-right:52px}
+.passo p{margin:0;color:var(--txt2);font-size:14px;line-height:1.6}
+
+/* ---- SELO DE GARANTIA ---- */
+.selo{display:block;width:118px;height:118px;margin:0 auto 26px}
+
+/* ---- DEPOIMENTOS (bolhas de WhatsApp) ---- */
+.wa{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:58px;text-align:left}
+@media(max-width:960px){.wa{grid-template-columns:1fr}}
+.wa-c{background:#0b141a;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.wa-h{display:flex;align-items:center;gap:11px;padding:11px 14px;background:#1f2c33}
+.wa-av{width:34px;height:34px;border-radius:50%;background:#3b4a54;display:flex;align-items:center;
+ justify-content:center;font-size:14px;font-weight:700;color:#aebac1;flex:none}
+.wa-n{font-size:14px;font-weight:600;color:#e9edef;line-height:1.25}
+.wa-n small{display:block;font-size:11.5px;font-weight:400;color:#8696a0}
+/* A textura de fundo do WhatsApp em CSS puro: dois gradientes cruzados. Uma
+   imagem só para isto seria peso morto no topo da página. */
+.wa-b{padding:18px 14px;min-height:132px;
+ background:repeating-linear-gradient(45deg,rgba(255,255,255,.012) 0 2px,transparent 2px 9px),
+            repeating-linear-gradient(-45deg,rgba(255,255,255,.012) 0 2px,transparent 2px 9px)}
+.wa-m{position:relative;max-width:92%;background:#005c4b;color:#e9edef;font-size:14px;line-height:1.5;
+ padding:8px 11px 20px;border-radius:9px 0 9px 9px;margin-left:auto;box-shadow:0 1px 1px rgba(0,0,0,.3)}
+.wa-m::after{content:"";position:absolute;top:0;right:-7px;border:7px solid transparent;
+ border-top-color:#005c4b;border-right:0}
+.wa-t{position:absolute;right:10px;bottom:6px;font-size:10.5px;color:rgba(233,237,239,.6)}
+
 /* preço */
 .pg{display:grid;grid-template-columns:1.05fr .95fr;gap:20px;margin-top:58px;text-align:left}
 @media(max-width:960px){.pg{grid-template-columns:1fr}}
@@ -264,7 +316,7 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
 @property --gradient-percent{syntax:"<percentage>";initial-value:5%;inherits:false}
 @property --gradient-shine{syntax:"<color>";initial-value:#ffffff;inherits:false}
 .shiny-cta{
- --shiny-cta-bg:#0a0b0e;--shiny-cta-bg-subtle:#15171d;--shiny-cta-fg:#fff;
+ --shiny-cta-bg:#0a0b0e;--shiny-cta-bg-subtle:#15171d;--shiny-cta-fg:#0a0b0e;
  --shiny-cta-highlight:#c0c5ce;--shiny-cta-highlight-subtle:#eef1f5;
  --animation:gradient-angle linear infinite;--duration:3s;--shadow-size:2px;
  --transition:800ms cubic-bezier(.25,1,.5,1);
@@ -272,13 +324,16 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
  display:inline-flex;align-items:center;justify-content:center;gap:9px;text-decoration:none;
  padding:1.1rem 2.3rem;font-family:'Urbanist',sans-serif;font-size:1rem;line-height:1.2;font-weight:500;
  border:1px solid transparent;border-radius:360px;color:var(--shiny-cta-fg);
- background:linear-gradient(var(--shiny-cta-bg),var(--shiny-cta-bg)) padding-box,
+ /* Botão preenchido em prata puxando pro branco, com texto escuro: num fundo
+    quase preto é o elemento de maior contraste da página, que é o que um CTA
+    principal tem que ser. O anel cônico animado continua girando por cima. */
+ background:linear-gradient(100deg,#9aa3b4 0%,#d6dce4 42%,#ffffff 62%,#c8cfd9 100%) padding-box,
   conic-gradient(from calc(var(--gradient-angle) - var(--gradient-angle-offset)),transparent,
    var(--shiny-cta-highlight) var(--gradient-percent),
    var(--gradient-shine) calc(var(--gradient-percent)*2),
    var(--shiny-cta-highlight) calc(var(--gradient-percent)*3),
    transparent calc(var(--gradient-percent)*4)) border-box;
- box-shadow:inset 0 0 0 1px var(--shiny-cta-bg-subtle);
+ box-shadow:0 6px 22px rgba(214,220,228,.16),inset 0 1px 0 rgba(255,255,255,.85);
  transition:var(--transition);transition-property:--gradient-angle-offset,--gradient-percent,--gradient-shine;
 }
 .shiny-cta::before,.shiny-cta::after,.shiny-cta span::before{content:"";pointer-events:none;position:absolute;inset-inline-start:50%;inset-block-start:50%;translate:-50% -50%;z-index:-1}
@@ -320,24 +375,24 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
 
 <nav id="nav"><div class="wrap">
   <a href="#top"><img class="logo" src="/landing/img/webcloner-logo-text.png" alt="Web Cloner AI"></a>
-  <div class="links"><a href="#beneficios">Benefícios</a><a href="#export">O que vem</a><a href="#ia">Editar com IA</a><a href="#comunidade">Comunidade</a><a href="#preco">Preço</a></div>
-  <a class="shiny-cta sm" href="#preco"><span>Obter agora ↗</span></a>
+  <div class="links"><a href="#beneficios">Benefícios</a><a href="#passos">Como funciona</a><a href="#export">O que faz</a><a href="#comunidade">Comunidade</a><a href="#preco">Preço</a></div>
+  <a class="shiny-cta sm" href="#preco"><span>Adquirir agora ↗</span></a>
 </div></nav>
 
 <!-- HERO -->
 <header class="hero" id="top">
   <div class="glow a" id="g1"></div><div class="glow b"></div><div class="glow c"></div>
-  <canvas class="pillar" id="pillar" aria-hidden="true"></canvas>
+  <canvas class="rays" id="rays" aria-hidden="true"></canvas>
   <div class="beam"></div>
   <div class="wrap center">
     <span class="eye rv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18V9M9 18V5M14 18v-6M19 18v-9"/></svg> Extensão Chrome · Processamento local</span>
     <h1 class="rv" data-d="1">Copie qualquer site em <span class="grad">2 cliques</span> e edite <span class="grad">do seu jeito</span></h1>
-    <p class="sub rv" data-d="2">Clique em capturar e receba HTML, CSS, assets, fontes e SVGs organizados numa pasta — pronta pra abrir no Cursor, Claude ou ChatGPT. O que levava uma tarde, agora leva um minuto.</p>
+    <p class="sub rv" data-d="2"><strong style="color:var(--txt1);font-weight:600">Aquele site que você queria ter custa R$29,90 e um minuto.</strong> Não é template, não é inspiração: é o site inteiro, com efeitos, HTML, CSS, imagens e fontes, em uma pasta que você abre na IA e edita em português até virar o seu.</p>
     <div class="cta rv" data-d="3">
-      <a class="shiny-cta" href="#preco"><span>Copiar meu primeiro site ↗</span></a>
+      <a class="shiny-cta" href="#preco"><span>Adquirir agora ↗</span></a>
       <a class="btn btn-2" href="#demo">▶ Ver a demo <span class="ar">↗</span></a>
     </div>
-    <div class="proofs rv" data-d="3"><span><span class="dot"></span> Sem login</span><span><span class="dot"></span> Nada sobe pra servidor</span><span><span class="dot"></span> Pagamento único</span></div>
+    <div class="proofs rv" data-d="3"><span><span class="dot"></span> Instalação rápida</span><span><span class="dot"></span> Acesso vitalício</span><span><span class="dot"></span> Uso ilimitado</span><span><span class="dot"></span> Pagamento único</span></div>
   </div>
   <!-- mockup em perspectiva -->
   <div class="stage wrap rv" id="demo">
@@ -377,7 +432,7 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
 </header>
 
 <section style="padding:70px 0 60px">
-  <p class="center" style="color:var(--txt3);font-size:12px;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 26px">Captura páginas feitas com</p>
+  <p class="center" style="color:var(--txt3);font-size:12px;letter-spacing:1.4px;text-transform:uppercase;margin:0 0 26px">Capture páginas feitas com</p>
   <div class="mq"><div class="track" id="tech"></div></div>
 </section>
 <div class="line"></div>
@@ -385,7 +440,7 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
 <!-- BENEFÍCIOS -->
 <section id="beneficios"><div class="wrap center">
   <span class="eye rv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg> Chega de site meia-boca</span>
-  <h2 class="rv" data-d="1" style="margin-top:24px">Pare de gastar <span class="grad">tempo e dinheiro</span><br>num site que você não gosta</h2>
+  <h2 class="rv" data-d="1" style="margin-top:24px">Pare de gastar <span class="grad">tempo e dinheiro</span><br>em um site que você não gosta</h2>
   <p class="sub rv" data-d="2">Com o Web Cloner AI você tem o site que quiser, personalizável do seu jeito.</p>
   <div class="g3">
     <div class="vcard rv"><div class="vis"><div class="w">
@@ -406,28 +461,16 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
 </div></section>
 <div class="line"></div>
 
-<!-- EXPORT -->
-<section id="export"><div class="wrap center">
-  <span class="eye rv">O que vem no export</span>
-  <h2 class="rv" data-d="1" style="margin-top:24px">Um projeto que você<br>abriria <span class="grad">sem medo</span></h2>
-  <p class="sub rv" data-d="2">Não é um HTML salvo com Ctrl+S. É uma estrutura que dá pra ler, editar e versionar.</p>
-  <div class="feat">
-    <div class="rv"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/></svg><h3>HTML que dá pra ler</h3><p>Estrutura semântica do DOM renderizado — não um despejo de divs minificadas.</p></div>
-    <div class="rv" data-d="1"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a9 9 0 0 1 0 18"/></svg><h3>CSS organizado</h3><p>Estilos completos com variáveis e tokens. Mude uma cor sem quebrar a página.</p></div>
-    <div class="rv" data-d="2"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15l5-4 4 3 3-2 6 4"/><circle cx="8.5" cy="9.5" r="1.2"/></svg><h3>Assets no lugar</h3><p>Imagens, fontes, ícones e SVGs baixados e referenciados certo. Nada de link morto.</p></div>
-    <div class="rv"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg><h3>Detecção de stack</h3><p>Você sabe se usa React, Vue, Tailwind ou GSAP antes de abrir o código.</p></div>
-    <div class="rv" data-d="1"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><h3>100% local</h3><p>A captura roda no seu navegador. Nada sobe pra servidor. Sem login, sem conta.</p></div>
-    <div class="rv" data-d="2"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h7"/></svg><h3>Qualquer página pública</h3><p>React, Next.js, Webflow, Framer, WordPress — se renderiza no Chrome, exporta.</p></div>
+<!-- COMO FUNCIONA -->
+<section id="passos"><div class="wrap center">
+  <span class="eye rv">Veja como é fácil</span>
+  <h2 class="rv" data-d="1" style="margin-top:24px">Três passos entre você<br>e o site que <span class="grad">você quer</span></h2>
+  <div class="passos">
+    <div class="passo rv"><span class="n">1</span><h3>Instale a extensão</h3><p>Dois cliques no Chrome. Sem criar conta, sem terminal, sem configuração.</p></div>
+    <div class="passo rv" data-d="1"><span class="n">2</span><h3>Copie o site que você admira</h3><p>Abra a página, clique em capturar e receba tudo organizado numa pasta na sua máquina.</p></div>
+    <div class="passo rv" data-d="2"><span class="n">3</span><h3>Edite do jeito que quiser</h3><p>Abra a pasta na IA da sua escolha e peça as mudanças em português até o site virar o seu.</p></div>
   </div>
 </div></section>
-<div class="line"></div>
-
-<!-- IA -->
-<section id="ia"><div class="wrap center">
-  <span class="eye rv">✦ Compatível com IA</span>
-  <h2 class="rv" data-d="1" style="margin-top:24px">Edite em <span class="grad">qualquer IA</span><br>da sua escolha</h2>
-  <p class="sub rv" data-d="2">Capturou o site? Abra a pasta na IA que você preferir e edite como quiser — o código já sai pronto pra trabalhar.</p>
-</div><div class="mq" style="margin-top:56px"><div class="track" id="ais"></div></div></section>
 <div class="line"></div>
 
 <!-- NA PRÁTICA -->
@@ -440,21 +483,80 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
 </section>
 <div class="line"></div>
 
+<!-- O QUE A EXTENSÃO FAZ -->
+<section id="export"><div class="wrap center">
+  <span class="eye rv">O que a extensão consegue fazer</span>
+  <h2 class="rv" data-d="1" style="margin-top:24px">A página inteira vem junto —<br>não só o <span class="grad">visual parado</span></h2>
+  <p class="sub rv" data-d="2">Não é um HTML salvo com Ctrl+S. É a página como ela aparece no navegador, com o que faz ela se mexer.</p>
+  <div class="feat">
+    <div class="rv"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.9 4.9l2.9 2.9M16.2 16.2l2.9 2.9M2 12h4M18 12h4M4.9 19.1l2.9-2.9M16.2 7.8l2.9-2.9"/></svg><h3>Efeitos e animações</h3><p>Transições, hovers e animações declaradas na página vêm junto com o código.</p></div>
+    <div class="rv" data-d="1"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M8 12l4 4 4-4"/><path d="M4 20h16"/></svg><h3>Efeitos de scroll</h3><p>Os elementos que aparecem e se movem conforme a pessoa rola continuam funcionando.</p></div>
+    <div class="rv" data-d="2"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/></svg><h3>HTML e CSS completos</h3><p>Estrutura e estilos inteiros, com as variáveis de cor e fonte separadas — mudar o visual é mexer em uma linha.</p></div>
+    <div class="rv"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15l5-4 4 3 3-2 6 4"/><circle cx="8.5" cy="9.5" r="1.2"/></svg><h3>Imagens, ícones e fontes</h3><p>Tudo baixado e referenciado certo na pasta. Nada de link morto nem imagem quebrada.</p></div>
+    <div class="rv" data-d="1"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h7"/></svg><h3>Qualquer linguagem</h3><p>React, Next.js, Vue, Webflow, Framer, WordPress. A captura é da página já renderizada, então a tecnologia por trás não importa.</p></div>
+    <div class="rv" data-d="2"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg><h3>Detecção de stack</h3><p>Você sabe se a página usa React, Vue, Tailwind ou GSAP antes mesmo de abrir o código.</p></div>
+  </div>
+</div></section>
+<div class="line"></div>
+
+<!-- IA -->
+<section id="ia"><div class="wrap center">
+  <span class="eye rv">✦ Compatível com qualquer tipo de IA</span>
+  <h2 class="rv" data-d="1" style="margin-top:24px">Edite em <span class="grad">qualquer IA</span><br>da sua escolha</h2>
+  <p class="sub rv" data-d="2">Capturou o site? Abra a pasta na IA que você preferir e edite como quiser.</p>
+</div><div class="mq" style="margin-top:56px"><div class="track" id="ais"></div></div></section>
+<div class="line"></div>
+
 <!-- COMUNIDADE -->
 <section id="comunidade"><div class="wrap center">
   <span class="eye rv">Muito além do plugin</span>
   <h2 class="rv" data-d="1" style="margin-top:24px">Não é <span class="grad">só o plugin</span></h2>
   <p class="sub rv" data-d="2">Além do plugin, você tem acesso a uma área de membros com aulas e tutoriais de edição e de como deixar seu site no ar.</p>
   <div class="feat">
-    <div class="rv"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><h3>Suporte</h3><p>Tire dúvidas direto com quem construiu a ferramenta, no grupo.</p></div>
-    <div class="rv" data-d="1"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg><h3>Grupo de network</h3><p>Comunidade de devs, agências e freelancers pra trocar ideia e fechar projeto.</p></div>
-    <div class="rv" data-d="2"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><h3>Instalar a extensão</h3><p>Tutorial passo a passo pra instalar no Chrome em 2 cliques.</p></div>
-    <div class="rv"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><h3>Editar o site</h3><p>Aulas de como editar o site capturado na IA da sua escolha.</p></div>
-    <div class="rv" data-d="1"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.3A7 7 0 1 0 6 17h12a4 4 0 0 0 0-7z"/></svg><h3>Colocar no ar</h3><p>Tutorial de como publicar seu site editado, do zero ao online.</p></div>
-    <div class="rv" data-d="2"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 2l2.6 6.6L21 10l-5 4.2 1.6 6.8L12 17.6 6.4 21 8 14.2 3 10l6.4-1.4z"/></svg><h3>Novidades sempre</h3><p>Novos tutoriais e recursos adicionados na área de membros.</p></div>
+    <div class="rv"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg><h3>Grupo de network</h3><p>Comunidade de devs, agências e freelancers pra trocar ideia e fechar projeto.</p></div>
+    <div class="rv" data-d="1"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><h3>Tutoriais</h3><p>Aulas de instalar, de editar o site na IA e de publicar, do zero ao online.</p></div>
+    <div class="rv" data-d="2"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><h3>Suporte</h3><p>Tire dúvidas direto com quem construiu a ferramenta, no grupo.</p></div>
+    <div class="rv"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 2l2.6 6.6L21 10l-5 4.2 1.6 6.8L12 17.6 6.4 21 8 14.2 3 10l6.4-1.4z"/></svg><h3>Atualizações</h3><p>Novos recursos na extensão e novos tutoriais na área de membros, sem pagar de novo.</p></div>
+    <div class="rv" data-d="1"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.3-7-9.5A4.5 4.5 0 0 1 12 8a4.5 4.5 0 0 1 7 3.5C19 16.7 12 21 12 21z"/></svg><h3>Acesso vitalício</h3><p>Um pagamento e pronto. Sem mensalidade, sem renovação, sem cobrança surpresa.</p></div>
+    <div class="rv" data-d="2"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 1 8 8"/><path d="M12 20H4v-8"/></svg><h3>Uso ilimitado</h3><p>Capture quantos sites quiser, quantas vezes quiser. Não tem cota nem crédito.</p></div>
   </div>
 </div></section>
 <div class="line"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     DEPOIMENTOS — BLOCO DESLIGADO DE PROPÓSITO
+
+     A estrutura e o visual (bolhas de WhatsApp) estão prontos, mas o conteúdo
+     abaixo é PLACEHOLDER: não são clientes reais. Publicar depoimento inventado
+     como se fosse mensagem de cliente é propaganda enganosa (CDC art. 37) e, na
+     prática, o tipo de coisa que derruba a página se alguém cobrar a origem.
+
+     PARA LIGAR: peça o depoimento aos clientes que já usaram a extensão, troque
+     os textos abaixo pelos reais e remova as duas marcas de comentário — a que
+     abre logo acima e a que fecha depois do </section> do bloco.
+     ═══════════════════════════════════════════════════════════════════════════
+
+<section id="depoimentos"><div class="wrap center">
+  <span class="eye rv">Quem já usou</span>
+  <h2 class="rv" data-d="1" style="margin-top:24px">O que os clientes<br>mandam <span class="grad">depois de usar</span></h2>
+  <div class="wa">
+    <div class="wa-c rv">
+      <div class="wa-h"><div class="wa-av">?</div><div class="wa-n">NOME DO CLIENTE<small>online</small></div></div>
+      <div class="wa-b"><div class="wa-m">TEXTO REAL DO DEPOIMENTO AQUI<span class="wa-t">09:41 ✓✓</span></div></div>
+    </div>
+    <div class="wa-c rv" data-d="1">
+      <div class="wa-h"><div class="wa-av">?</div><div class="wa-n">NOME DO CLIENTE<small>online</small></div></div>
+      <div class="wa-b"><div class="wa-m">TEXTO REAL DO DEPOIMENTO AQUI<span class="wa-t">14:02 ✓✓</span></div></div>
+    </div>
+    <div class="wa-c rv" data-d="2">
+      <div class="wa-h"><div class="wa-av">?</div><div class="wa-n">NOME DO CLIENTE<small>online</small></div></div>
+      <div class="wa-b"><div class="wa-m">TEXTO REAL DO DEPOIMENTO AQUI<span class="wa-t">20:17 ✓✓</span></div></div>
+    </div>
+  </div>
+</div></section>
+<div class="line"></div>
+-->
+
 
 <!-- PREÇO -->
 <section id="preco"><div class="wrap center">
@@ -464,20 +566,15 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
   <div class="pg">
     <div class="pbox rv"><span class="eye" style="align-self:flex-start">Relembre o que está incluso</span>
       <ul class="incl">
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Captura completa: HTML, CSS, assets, fontes e SVGs</li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Mirror rodável: o site funcionando na sua máquina</li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Detecção de stack e design specs extraídas</li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Abre no Cursor, Claude, ChatGPT e VS Code</li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>100% local, sem login, sem servidor</li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Área de membros com aulas e tutoriais</li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Suporte e grupo de network</li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Capturas ilimitadas · use como base nos seus projetos</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Tudo o que citamos acima</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Copie inúmeros sites — uso ilimitado</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Acesso vitalício</li>
       </ul></div>
     <div class="pbox hi rv" data-d="1"><span class="eye">Oferta de lançamento</span>
       <div class="old" style="margin-top:24px">R$97</div><div class="big grad">R$29,90</div>
       <span class="vit">Acesso vitalício · pagamento único</span>
       <p class="sub" style="margin:18px 0 0;font-size:14px;text-align:left">Menos que um almoço, uma vez só. Sem mensalidade, pra sempre.</p>
-      <a class="shiny-cta full" style="margin-top:26px" href="/checkout/?plan=lifetime"><span>Quero o Web Cloner AI ↗</span></a>
+      <a class="shiny-cta full" style="margin-top:26px" href="/checkout/?plan=lifetime"><span>Quero adquirir ↗</span></a>
       
       <p class="sub" style="margin:10px 0 0;font-size:12.5px;text-align:left">Garantia incondicional de 7 dias. Risco zero.</p>
     </div>
@@ -487,11 +584,32 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
 
 <!-- GARANTIA -->
 <section id="garantia"><div class="wrap center">
-  <div class="tile rv" style="margin:0 auto 26px;width:76px;height:76px;border-radius:22px"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:36px;height:36px"><path d="M16 3l11 4v9c0 6.5-4.6 11.5-11 13-6.4-1.5-11-6.5-11-13V7z"/><path class="dash" d="M11 16l3.5 3.5L21 13"/></svg></div>
+  <!-- Selo de garantia: escudo com borda serrilhada de medalha e o "7 DIAS"
+       gravado no meio. Só SVG inline — nada de imagem extra pra baixar. -->
+  <svg class="selo rv" viewBox="0 0 120 120" role="img" aria-label="Selo de garantia de 7 dias">
+    <defs>
+      <linearGradient id="seloG" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#7d8798"/><stop offset="42%" stop-color="#eef1f5"/>
+        <stop offset="58%" stop-color="#c0c5ce"/><stop offset="100%" stop-color="#7d8798"/>
+      </linearGradient>
+    </defs>
+    <g fill="none" stroke="url(#seloG)" stroke-linecap="round" stroke-linejoin="round">
+      <!-- serrilha da medalha -->
+      <circle cx="60" cy="60" r="52" stroke-width="2" stroke-dasharray="3 6" opacity=".55"/>
+      <!-- escudo -->
+      <path d="M60 16l34 12v26c0 20-14.2 35.6-34 40-19.8-4.4-34-20-34-40V28z" stroke-width="3"/>
+      <!-- check, na metade de cima do escudo -->
+      <path d="M47 51l10 10 19-21" stroke-width="4"/>
+    </g>
+    <!-- o "7 DIAS" fica gravado DENTRO do escudo: fora dele batia na ponta -->
+    <text x="60" y="82" text-anchor="middle" fill="url(#seloG)"
+          font-family="Urbanist,-apple-system,Segoe UI,sans-serif" font-size="12.5" font-weight="800"
+          letter-spacing="1.4">7 DIAS</text>
+  </svg>
   <span class="eye rv">Risco zero</span>
   <h2 class="rv" data-d="1" style="margin-top:24px">Garantia incondicional<br>de <span class="grad">7 dias</span></h2>
   <p class="sub rv" data-d="2">Testa, usa num projeto real, e se não economizar seu tempo devolvemos 100% — sem formulário, sem pergunta.</p>
-  <div class="cta rv" data-d="3"><a class="shiny-cta" href="#preco"><span>Começar com risco zero ↗</span></a></div>
+  <div class="cta rv" data-d="3"><a class="shiny-cta" href="#preco"><span>Adquirir agora ↗</span></a></div>
 </div></section>
 <div class="line"></div>
 
@@ -511,7 +629,7 @@ footer p{color:var(--txt3);font-size:13px;margin:0}
 <footer><div class="wrap">
   <div class="fg">
     <div style="max-width:280px"><img class="logo" src="/landing/img/webcloner-logo-text.png" alt="Web Cloner AI"><p>Capture qualquer página. Edite. Construa o seu.</p></div>
-    <div class="fc4"><h4>Produto</h4><a href="#beneficios">Benefícios</a><a href="#export">O que vem no export</a><a href="#ia">Editar com IA</a><a href="#preco">Preço</a></div>
+    <div class="fc4"><h4>Produto</h4><a href="#beneficios">Benefícios</a><a href="#passos">Como funciona</a><a href="#export">O que a extensão faz</a><a href="#ia">Editar com IA</a><a href="#preco">Preço</a></div>
     <div class="fc4"><h4>Suporte</h4><a href="#faq">FAQ</a><a href="#comunidade">Comunidade</a><a href="#garantia">Garantia</a></div>
     <div class="fc4"><h4>Legal</h4><a href="/termos">Termos de uso</a><a href="/termos#privacidade">Privacidade</a></div>
   </div>
@@ -578,86 +696,97 @@ function shot(s){
 })();
 
 
-/* ── LIGHT PILLAR (fundo da hero) ─────────────────────────────────────────────
-   Porte do componente LightPillar do React Bits (reactbits.dev), que usa
-   three.js. Aqui é WebGL puro: a cena original é só uma câmera ortográfica com
-   um plano 2x2, ou seja, um quad de tela cheia — o three.js seria 150 KB de
-   encanamento para rodar um fragment shader. O shader abaixo é o mesmo. */
+/* ── LIGHT RAYS (fundo da hero) ───────────────────────────────────────────────
+   Porte do componente LightRays do React Bits (reactbits.dev), que usa ogl.
+   Aqui é WebGL puro: a cena original é só um quad de tela cheia rodando um
+   fragment shader — a biblioteca inteira seria peso morto para isso.
+
+   Parâmetros do componente, um para um:
+     raysOrigin="top-center"  origem no topo, centro  (uOrigem/uDirecao)
+     raysColor="#7b7b7b"      uRaysColor
+     raysSpeed={1}            uRaysSpeed
+     lightSpread={1}          uLightSpread
+     rayLength={2}            uRayLength
+     fadeDistance={1}         uFadeDistance
+     saturation={1}           uSaturation
+     pulsating={false}  followMouse={false}  noiseAmount={0}  distortion={0}
+
+   Os quatro últimos estão desligados, então saíram do shader em vez de virarem
+   uniforme constante: é fundo de página de vendas, cada instrução por pixel
+   conta. Religar qualquer um é mexer aqui, não trocar um número.
+
+   O 1080x1080 do snippet era só a moldura da demo do React Bits; aqui o canvas
+   ocupa a hero inteira (inset:0). */
 (function(){
-  var cv = document.getElementById('pillar');
+  var cv = document.getElementById('rays');
   if (!cv) return;
   var hero = cv.parentNode;
-  function desistir(){ hero.classList.add('pillar-off'); cv.style.display='none'; }
+  function desistir(){ hero.classList.add('rays-off'); cv.style.display='none'; }
 
   if (matchMedia('(prefers-reduced-motion:reduce)').matches) return desistir();
 
-  /* Aparelho fraco não roda isto. Um raymarch de dezenas de iterações por pixel
-     depende de GPU decente; onde não há (celular de entrada, e o próprio
-     laboratório do PageSpeed, que renderiza WebGL por software) o custo vai
-     todo para a CPU e trava a página. Nesses casos fica o feixe CSS. */
-  var nucleos = navigator.hardwareConcurrency || 4;
-  var memoria = navigator.deviceMemory || 4;
-  if (nucleos <= 4 || memoria <= 4) return desistir();
+  /* A guarda aqui era dura (4 núcleos ou 4 GB caíam no fallback) porque o
+     shader anterior fazia dezenas de iterações de raymarch por pixel. Este não
+     tem laço nenhum: são duas chamadas de seno por fragmento. O que ainda não
+     vale a pena é WebGL por software — o laboratório do PageSpeed e aparelhos
+     de entrada de verdade —, e é só isso que sobra barrado. */
+  if ((navigator.hardwareConcurrency || 4) <= 2) return desistir();
 
   var gl = cv.getContext('webgl',{antialias:false,alpha:true,powerPreference:'high-performance'})
         || cv.getContext('experimental-webgl');
   if (!gl) return desistir();
 
   /* Parâmetros (os mesmos passados ao componente) */
-  var P = { topColor:[0.549,0.549,0.549], bottomColor:[0,0,0], intensity:2.3,
-            rotationSpeed:1.7, glowAmount:0.005, pillarWidth:1.0, pillarHeight:0.4,
-            noiseIntensity:1.0, pillarRotation:180 };
+  var P = { raysColor:[0.482,0.482,0.482], raysSpeed:1.0, lightSpread:1.0,
+            rayLength:2.0, fadeDistance:1.0, saturation:1.0 };
 
-  /* O componente derruba a qualidade no celular; aqui também — 80 iterações de
-     raymarch por pixel fritam bateria em telefone. */
   var mobile = matchMedia('(max-width:900px)').matches || /Mobi|Android/i.test(navigator.userAgent);
-  var Q = mobile ? { iter:24, wave:1, dpr:0.5,  step:1.5 }
-                 : { iter:64, wave:3, dpr:Math.min(devicePixelRatio||1, 1.5), step:1.1 };
+  var Q = { dpr: mobile ? 0.75 : Math.min(devicePixelRatio||1, 1.5) };
 
   var VS = 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
   var FS =
   'precision highp float;' +
-  'uniform float uTime,uIntensity,uGlowAmount,uPillarWidth,uPillarHeight,uNoiseIntensity;' +
-  'uniform float uRotCos,uRotSin,uPillarRotCos,uPillarRotSin,uWaveSin,uWaveCos;' +
-  'uniform vec2 uResolution;uniform vec3 uTopColor,uBottomColor;' +
-  /* tanh só existe a partir do GLSL ES 3.0; o three.js compila em WebGL2 e
-     ganha de graça. Em WebGL1 é preciso escrever — com clamp, senão exp()
-     estoura e o pixel vira NaN (tela preta). */
-  'vec3 tanh3(vec3 x){x=clamp(x,-10.0,10.0);vec3 e=exp(2.0*x);return (e-1.0)/(e+1.0);}' +
+  'uniform float uTime,uRaysSpeed,uLightSpread,uRayLength,uFadeDistance,uSaturation;' +
+  'uniform vec2 uResolution,uOrigem,uDirecao;uniform vec3 uRaysColor;' +
+  /* Um "raio": quanto desta direção chega neste pixel. O cosseno do ângulo
+     entre (pixel - origem) e a direção do feixe é o que desenha o leque; o
+     resto são as quedas por distância e a ondulação que dá vida. */
+  'float forca(vec2 coord,float semA,float semB,float vel){' +
+  ' vec2 ate=coord-uOrigem;' +
+  ' float dist=length(ate);' +
+  ' float cosAng=dot(normalize(ate),uDirecao);' +
+  ' float espalha=pow(max(cosAng,0.0),1.0/max(uLightSpread,0.001));' +
+  ' float maxDist=uResolution.x*uRayLength;' +
+  ' float quedaComp=clamp((maxDist-dist)/maxDist,0.0,1.0);' +
+  ' float fade=uResolution.x*uFadeDistance;' +
+  ' float quedaFade=clamp((fade-dist)/fade,0.5,1.0);' +
+  ' float base=clamp((0.45+0.15*sin(cosAng*semA+uTime*vel))' +
+  '                 +(0.30+0.20*cos(-cosAng*semB+uTime*vel)),0.0,1.0);' +
+  ' return base*quedaComp*quedaFade*espalha;}' +
   'void main(){' +
-  ' vec2 uv=(gl_FragCoord.xy/uResolution*2.0-1.0)*vec2(uResolution.x/uResolution.y,1.0);' +
-  ' uv=vec2(uPillarRotCos*uv.x-uPillarRotSin*uv.y,uPillarRotSin*uv.x+uPillarRotCos*uv.y);' +
-  ' vec3 ro=vec3(0.0,0.0,-10.0);vec3 rd=normalize(vec3(uv,1.0));' +
-  ' vec3 col=vec3(0.0);float t=0.1;' +
-  ' for(int i=0;i<ITER;i++){' +
-  '  vec3 p=ro+rd*t;' +
-  '  p.xz=vec2(uRotCos*p.x-uRotSin*p.z,uRotSin*p.x+uRotCos*p.z);' +
-  '  vec3 q=p;q.y=p.y*uPillarHeight+uTime;' +
-  '  float freq=1.0,amp=1.0;' +
-  '  for(int j=0;j<WAVE;j++){' +
-  '   q.xz=vec2(uWaveCos*q.x-uWaveSin*q.z,uWaveSin*q.x+uWaveCos*q.z);' +
-  '   q+=cos(q.zxy*freq-uTime*float(j)*2.0)*amp;freq*=2.0;amp*=0.5;}' +
-  '  float d=length(cos(q.xz))-0.2;' +
-  '  float bound=length(p.xz)-uPillarWidth;' +
-  '  float k=4.0;float h=max(k-abs(d-bound),0.0);' +
-  '  d=max(d,bound)+h*h*0.0625/k;d=abs(d)*0.15+0.01;' +
-  '  float grad=clamp((15.0-p.y)/30.0,0.0,1.0);' +
-  '  col+=mix(uBottomColor,uTopColor,grad)/d;' +
-  '  t+=d*STEP;if(t>50.0)break;}' +
-  ' col=tanh3(col*uGlowAmount/(uPillarWidth/3.0));' +
-  ' col-=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)/15.0*uNoiseIntensity;' +
-  /* Desvio proposital do original: o raymarch deixa um piso de luz ambiente
-     (~0.045) que, somado por mix-blend-mode:screen, tirava o preto da pagina
-     inteira — medido: cantos em (31,31,33) contra os (8,9,11) do site. No
-     componente original isso nao aparece porque ele vive sozinho num quadro
-     preto. Aqui o piso e cortado; a coluna (perto de 1.0) nao sente. */
-  ' col=max(col-0.045,0.0);' +
-  ' gl_FragColor=vec4(col*uIntensity,1.0);}';
-  FS = FS.replace(/ITER/g, Q.iter).replace(/WAVE/g, Q.wave).replace(/STEP/g, Q.step.toFixed(1));
+  /* gl_FragCoord cresce de baixo para cima; o componente trabalha com y para
+     baixo, e é disso que depende a origem "top-center" ficar no topo. */
+  ' vec2 coord=vec2(gl_FragCoord.x,uResolution.y-gl_FragCoord.y);' +
+  ' float r1=forca(coord,36.2214,21.11349,1.5*uRaysSpeed);' +
+  ' float r2=forca(coord,22.3991,18.0234, 1.1*uRaysSpeed);' +
+  ' vec3 cor=vec3(r1*0.5+r2*0.4);' +
+  /* Ganho por canal: os raios nascem quentes na origem e esfriam descendo.
+     É o que tira o cinza chapado e dá a leitura de luz de verdade. */
+  ' float brilho=1.0-(coord.y/uResolution.y);' +
+  ' cor.r*=0.1+brilho*0.8;cor.g*=0.3+brilho*0.6;cor.b*=0.5+brilho*0.5;' +
+  ' if(uSaturation!=1.0){' +
+  '  float cinza=dot(cor,vec3(0.299,0.587,0.114));' +
+  '  cor=mix(vec3(cinza),cor,uSaturation);}' +
+  ' cor*=uRaysColor;' +
+  /* Mesmo desvio do shader anterior, pela mesma razão: mix-blend-mode:screen
+     soma este quadro ao fundo, e o piso de luz que sobra longe dos raios
+     levantava o preto do site inteiro. Cortado aqui; o miolo não sente. */
+  ' cor=max(cor-0.012,0.0);' +
+  ' gl_FragColor=vec4(cor,1.0);}';
 
   function compilar(tipo,src){
     var sh=gl.createShader(tipo);gl.shaderSource(sh,src);gl.compileShader(sh);
-    if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)){console.warn('[pillar]',gl.getShaderInfoLog(sh));return null;}
+    if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)){console.warn('[rays]',gl.getShaderInfoLog(sh));return null;}
     return sh;
   }
   var vs=compilar(gl.VERTEX_SHADER,VS), fs=compilar(gl.FRAGMENT_SHADER,FS);
@@ -672,26 +801,25 @@ function shot(s){
   var loc=gl.getAttribLocation(prog,'p');
   gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
 
-  var U={};['uTime','uResolution','uTopColor','uBottomColor','uIntensity','uGlowAmount',
-   'uPillarWidth','uPillarHeight','uNoiseIntensity','uRotCos','uRotSin','uPillarRotCos',
-   'uPillarRotSin','uWaveSin','uWaveCos'].forEach(function(n){U[n]=gl.getUniformLocation(prog,n)});
+  var U={};['uTime','uResolution','uOrigem','uDirecao','uRaysColor','uRaysSpeed',
+   'uLightSpread','uRayLength','uFadeDistance','uSaturation']
+   .forEach(function(n){U[n]=gl.getUniformLocation(prog,n)});
 
-  var rad=P.pillarRotation*Math.PI/180;
-  gl.uniform3fv(U.uTopColor,P.topColor);
-  gl.uniform3fv(U.uBottomColor,P.bottomColor);
-  gl.uniform1f(U.uIntensity,P.intensity);
-  gl.uniform1f(U.uGlowAmount,P.glowAmount);
-  gl.uniform1f(U.uPillarWidth,P.pillarWidth);
-  gl.uniform1f(U.uPillarHeight,P.pillarHeight);
-  gl.uniform1f(U.uNoiseIntensity,P.noiseIntensity);
-  gl.uniform1f(U.uPillarRotCos,Math.cos(rad));
-  gl.uniform1f(U.uPillarRotSin,Math.sin(rad));
-  gl.uniform1f(U.uWaveSin,Math.sin(0.4));
-  gl.uniform1f(U.uWaveCos,Math.cos(0.4));
+  gl.uniform3fv(U.uRaysColor,P.raysColor);
+  gl.uniform1f(U.uRaysSpeed,P.raysSpeed);
+  gl.uniform1f(U.uLightSpread,P.lightSpread);
+  gl.uniform1f(U.uRayLength,P.rayLength);
+  gl.uniform1f(U.uFadeDistance,P.fadeDistance);
+  gl.uniform1f(U.uSaturation,P.saturation);
+  gl.uniform2f(U.uDirecao,0.0,1.0);   // raysOrigin "top-center": feixe desce
 
   function medir(){
     var w=Math.max(1,Math.round(cv.clientWidth*Q.dpr)), h=Math.max(1,Math.round(cv.clientHeight*Q.dpr));
-    if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;gl.viewport(0,0,w,h);gl.uniform2f(U.uResolution,w,h);}
+    if(cv.width!==w||cv.height!==h){
+      cv.width=w;cv.height=h;gl.viewport(0,0,w,h);
+      gl.uniform2f(U.uResolution,w,h);
+      gl.uniform2f(U.uOrigem,w*0.5,0.0);   // topo, centro — acompanha o resize
+    }
   }
   addEventListener('resize',medir,{passive:true});
 
@@ -708,10 +836,8 @@ function shot(s){
     raf=0;
     if(!visivel) return;
     medir();
-    tempo+=0.016*P.rotationSpeed;
+    tempo+=0.016;               // uTime em segundos; a velocidade é uRaysSpeed
     gl.uniform1f(U.uTime,tempo);
-    gl.uniform1f(U.uRotCos,Math.cos(tempo*0.3));
-    gl.uniform1f(U.uRotSin,Math.sin(tempo*0.3));
     gl.drawArrays(gl.TRIANGLES,0,3);
     raf=requestAnimationFrame(quadro);
   }
@@ -919,6 +1045,69 @@ document.querySelectorAll('.rv').forEach(function(e){io.observe(e)});
   var a=e.target.closest && e.target.closest('a[href*="/checkout"]');
   if(a) pixel('AddToCart');
  },{passive:true,capture:true});
+
+ /* ── Onde a leitura morre ──────────────────────────────────────────────────
+    PageView e ViewContent são os dois extremos: abriu o site e chegou no preço.
+    Entre eles existem oito seções e nenhum sinal — não dá para saber qual delas
+    perde o leitor. Estes eventos preenchem o meio:
+
+      Scroll25/50/75/90  profundidade máxima alcançada
+      SecaoVista         cada seção que entrou na tela (content_name = id)
+      SaidaDaPagina      a última seção vista antes de sair — a resposta direta
+                         para "onde eles desistem"
+
+    trackCustom e não track: são eventos nossos, não do catálogo do Meta. */
+ var custom={};
+ function pixelCustom(evento,dados){
+  var chave=evento+(dados&&dados.content_name?':'+dados.content_name:'');
+  if(custom[chave]) return;
+  custom[chave]=1;
+  fbq('trackCustom',evento,dados||{});
+ }
+
+ var marcos=[25,50,75,90], profundidade=0;
+ function medirScroll(){
+  var alcance=document.documentElement.scrollHeight-innerHeight;
+  if(alcance<=0) return;
+  var pct=Math.min(100,Math.round(scrollY/alcance*100));
+  if(pct>profundidade) profundidade=pct;
+  marcos.forEach(function(m){ if(pct>=m) pixelCustom('Scroll'+m); });
+ }
+ addEventListener('scroll',medirScroll,{passive:true});
+ medirScroll();
+
+ var alvos=document.querySelectorAll('header.hero,section[id]');
+ if(window.IntersectionObserver&&alvos.length){
+  var obs=new IntersectionObserver(function(es){
+   es.forEach(function(e){
+    if(!e.isIntersecting) return;
+    pixelCustom('SecaoVista',{content_name:e.target.id||'hero'});
+   });
+  },{threshold:0,rootMargin:'0px 0px -40% 0px'});
+  [].forEach.call(alvos,function(s){ obs.observe(s); });
+ }
+
+ // Qual seção estava na tela na hora da saída — por geometria, não pelo observer
+ // acima. Se o IntersectionObserver não entregar (aba aberta em segundo plano,
+ // navegador antigo), guardar "a última seção observada" credita TODA saída ao
+ // hero e o relatório aponta para o lugar errado. A conta abaixo não depende de
+ // callback nenhum: lê a posição no momento em que a pessoa sai.
+ function secaoNaTela(){
+  var meio=scrollY+innerHeight/2, nome='hero';
+  [].forEach.call(alvos,function(s){ if(s.offsetTop<=meio) nome=s.id||'hero'; });
+  return nome;
+ }
+
+ // pagehide cobre fechar a aba, voltar e trocar de app no celular; o unload não
+ // dispara mais em boa parte dos navegadores. visibilitychange pega o resto.
+ var despediu=false;
+ function despedir(){
+  if(despediu) return;
+  despediu=true;
+  fbq('trackCustom','SaidaDaPagina',{content_name:secaoNaTela(),value:profundidade});
+ }
+ addEventListener('pagehide',despedir);
+ addEventListener('visibilitychange',function(){ if(document.visibilityState==='hidden') despedir(); });
 })();
 
 var nav=document.getElementById('nav');addEventListener('scroll',function(){nav.classList.toggle('scr',scrollY>20)},{passive:true});
